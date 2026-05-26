@@ -218,6 +218,12 @@
 - LLM 降级链：备用 model → 规则引擎 → 人审（C-34）
 - 单 LLM 故障不影响平台核心可用性
 
+### 5.8 系统兼容性（硬性承诺）
+- **OS**：Rocky/RHEL/AlmaLinux 9.4+ / Ubuntu 22.04 LTS / 24.04 LTS（x86_64）
+- **编排**：SaaS 必须 K8s 1.28+；本地模式 K8s 与 docker-compose v2.20+ 二选一
+- **离线**：本地模式必须支持完全离线部署
+- **完整矩阵与版本要求**：见 [compatibility.md](compatibility.md)（权威）
+
 ---
 
 ## 6. 范围

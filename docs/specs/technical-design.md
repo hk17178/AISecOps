@@ -181,16 +181,26 @@ class Agent(ABC):
 
 ### 3.7 部署技术栈
 
-| 维度 | 选型 |
-|---|---|
-| 容器化 | Docker + BuildKit |
-| 编排 | docker-compose（本地）+ K8s（生产/SaaS） |
-| 服务发现 | K8s Service / Consul（备选） |
-| 配置管理 | Pydantic Settings + envfile |
-| 凭证 | HashiCorp Vault（本地 / SaaS）+ 阿里云 KMS（SaaS 备选） |
-| 可观测 | OpenTelemetry + Tempo（trace）+ Loki（log）+ Prometheus（metric） |
-| 监控告警 | Grafana + Alertmanager |
-| CI / CD | GitHub Actions + ArgoCD（生产） |
+| 维度 | 选型 | 最低版本 |
+|---|---|---|
+| 容器化 | Docker + BuildKit | Docker 24.0+ |
+| 容器运行时 | Docker / containerd | containerd 1.7+ |
+| 编排（SaaS） | **K8s 必须** | 1.28+ |
+| 编排（本地） | K8s 或 docker-compose（二选一） | K8s 1.28+ / docker-compose v2.20+ |
+| Helm | Helm 3 | 3.14+ |
+| 服务发现 | K8s Service / Consul（备选） | - |
+| 配置管理 | Pydantic Settings + envfile | - |
+| 凭证 | HashiCorp Vault（本地 / SaaS）+ 阿里云 KMS（SaaS 备选） | Vault 1.16+ |
+| 可观测 | OpenTelemetry + Tempo（trace）+ Loki（log）+ Prometheus（metric） | OTel Collector 0.105+ |
+| 监控告警 | Grafana + Alertmanager | Grafana 11+ |
+| CI / CD | GitHub Actions + ArgoCD（生产） | - |
+
+**完整版本矩阵与 OS 兼容性**：见 [compatibility.md](compatibility.md)（权威）。
+
+**部署模式硬性约束**：
+- SaaS 模式：**必须 K8s 1.28+**（不接受 docker-compose 生产）
+- 本地模式：**必须支持完全离线部署**（含镜像 tar / 依赖仓库 / LLM 权重）
+- 平台只产出 `linux/amd64` 镜像，**不支持 ARM64**（V2 评估鲲鹏/飞腾）
 
 ---
 

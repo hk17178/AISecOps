@@ -9,6 +9,7 @@
 | [PRD.md](PRD.md) | 需求文档：愿景 / 用户 / 场景 / 功能 / 非功能 / 成功指标 | Draft v0.1 |
 | [technical-design.md](technical-design.md) | 技术设计：架构落地 / 技术选型 / 接口 / 部署 | Draft v0.1 |
 | [dev-plan.md](dev-plan.md) | 开发计划：阶段 / Sprint / DoD / 风险 | Draft v0.1 |
+| [compatibility.md](compatibility.md) | **系统兼容性矩阵**：OS / CPU / 容器 / K8s / 离线部署（硬性承诺） | Accepted v0.1 |
 
 ## 待补（按优先级）
 
