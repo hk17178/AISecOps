@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual env
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 测试 / 覆盖率
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.mypy_cache/
+.ruff_cache/
+nosetests.xml
+coverage.xml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 环境变量与密钥（重要：AISecOps 涉及大量凭证）
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+secrets/
+credentials/
+
+# 日志与数据（避免误提交安全数据）
+*.log
+logs/
+data/raw/
+data/processed/
+data/interim/
+
+# 模型权重（DSLM/Embedding 模型不应进仓库）
+models/*.bin
+models/*.safetensors
+models/*.gguf
+models/*.pt
+models/*.onnx
+
+# 本地数据库
+*.db
+*.sqlite
+*.sqlite3
