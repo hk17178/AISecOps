@@ -77,3 +77,6 @@ models/*.onnx
 *.db
 *.sqlite
 *.sqlite3
+
+# Claude Code 本地配置（个人覆盖项不入库；项目级 settings.json 要入库）
+.claude/settings.local.json

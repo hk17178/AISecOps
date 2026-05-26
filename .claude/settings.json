@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Edit(**)",
+      "Write(**)",
+      "Glob(**)",
+      "Grep(**)",
+
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "PowerShell(git:*)",
+      "PowerShell(gh:*)",
+
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pip:*)",
+      "Bash(uv:*)",
+      "Bash(.venv/Scripts/python:*)",
+      "Bash(.venv/Scripts/pip:*)",
+      "PowerShell(python:*)",
+      "PowerShell(pip:*)",
+      "PowerShell(uv:*)",
+
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(mypy:*)",
+      "Bash(black:*)",
+      "PowerShell(pytest:*)",
+      "PowerShell(ruff:*)",
+      "PowerShell(mypy:*)",
+
+      "Bash(uvicorn:*)",
+      "Bash(fastapi:*)",
+      "PowerShell(uvicorn:*)",
+      "PowerShell(fastapi:*)",
+
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(kubectl:*)",
+      "PowerShell(docker:*)",
+      "PowerShell(docker-compose:*)",
+      "PowerShell(kubectl:*)",
+
+      "Bash(npm:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(yarn:*)",
+      "PowerShell(npm:*)",
+      "PowerShell(node:*)",
+      "PowerShell(npx:*)",
+      "PowerShell(pnpm:*)",
+
+      "Bash(ls:*)",
+      "Bash(dir:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(file:*)",
+      "Bash(echo:*)",
+      "Bash(which:*)",
+      "Bash(where.exe:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(touch:*)",
+      "PowerShell(Get-Command:*)",
+      "PowerShell(Get-ChildItem:*)",
+      "PowerShell(Test-Path:*)",
+      "PowerShell(Get-Content:*)",
+      "PowerShell(New-Item:*)",
+      "PowerShell(Copy-Item:*)",
+      "PowerShell(Move-Item:*)",
+      "PowerShell(Rename-Item:*)",
+      "PowerShell(Select-String:*)",
+      "PowerShell(Where-Object:*)",
+      "PowerShell(ForEach-Object:*)",
+      "PowerShell(Select-Object:*)",
+      "PowerShell(Measure-Object:*)",
+      "PowerShell(Sort-Object:*)",
+      "PowerShell(Format-Table:*)",
+      "PowerShell(Out-String:*)",
+      "PowerShell(Resolve-Path:*)",
+      "PowerShell(Get-Item:*)",
+
+      "Bash(curl:*)",
+      "PowerShell(Invoke-WebRequest:*)",
+      "PowerShell(Invoke-RestMethod:*)",
+
+      "WebSearch",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:modelcontextprotocol.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.python.org)",
+      "WebFetch(domain:fastapi.tiangolo.com)",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:ollama.com)",
+      "WebFetch(domain:docs.litellm.ai)",
+      "WebFetch(domain:python.langchain.com)",
+      "WebFetch(domain:docs.llamaindex.ai)",
+      "WebFetch(domain:docs.crowdstrike.com)",
+      "WebFetch(domain:learn.microsoft.com)",
+      "WebFetch(domain:cloud.google.com)",
+      "WebFetch(domain:gartner.com)",
+      "WebFetch(domain:freebuf.com)",
+      "WebFetch(domain:secrss.com)",
+      "WebFetch(domain:stackoverflow.com)",
+      "WebFetch(domain:pypi.org)"
+    ],
+    "deny": [
+      "Bash(rm -rf /:*)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~:*)",
+      "Bash(rm -rf $HOME:*)",
+      "Bash(rm -rf ~/.*:*)",
+      "Bash(rm -rf /c:*)",
+      "Bash(rm -rf /d:*)",
+      "PowerShell(Remove-Item -Recurse -Force C:\\*)",
+      "PowerShell(Remove-Item -Recurse -Force D:\\*)",
+
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "PowerShell(git push --force:*)",
+      "PowerShell(git push -f:*)",
+      "Bash(git reset --hard origin/main:*)",
+      "Bash(git reset --hard origin/master:*)",
+      "Bash(git config --global:*)",
+      "PowerShell(git config --global:*)",
+      "Bash(git filter-branch:*)",
+      "Bash(git filter-repo:*)",
+
+      "PowerShell(iwr:* | iex)",
+      "PowerShell(Invoke-WebRequest:* | Invoke-Expression)",
+      "Bash(curl:* | sh)",
+      "Bash(curl:* | bash)",
+
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(secrets/**)",
+      "Read(credentials/**)",
+      "Read(**/*.key)",
+      "Read(**/*.pem)",
+      "Write(models/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -Command \"$f = $env:CLAUDE_TOOL_FILE_PATH; if ($f -and ($f -like '*.py') -and (Get-Command ruff -ErrorAction SilentlyContinue)) { ruff format $f 2>$null; ruff check --fix $f 2>$null } else { exit 0 }\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -Command \"$cmd = $env:CLAUDE_TOOL_COMMAND; if ($cmd -match 'git\\s+commit') { Write-Host '[hook] git commit 检测中 —— 提醒：不要提交 .env / 模型权重 / 原始日志' } exit 0\""
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONUNBUFFERED": "1"
+  }
+}
