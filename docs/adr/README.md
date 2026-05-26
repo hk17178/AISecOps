@@ -40,3 +40,4 @@
 | 编号 | 标题 | 状态 |
 |---|---|---|
 | [0001](0001-architecture-baseline.md) | 采用 12 层架构作为 AISecOps 基线 | Accepted |
+| [0002](0002-architecture-v2-supersedes-png.md) | 架构 V2 取代 V1 PNG 成为视觉权威 | Accepted |

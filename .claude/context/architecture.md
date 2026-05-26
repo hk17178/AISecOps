@@ -1,6 +1,7 @@
 # 12 层架构精炼版（给 AI 用的速查）
 
-> 视觉权威是 [`docs/architecture.png`](../../docs/architecture.png)，本文是文字版速查，**冲突以图为准**。
+> 视觉权威是 [`docs/architecture-v2.md`](../../docs/architecture-v2.md)（V2 文字版含 ASCII 图），本文是给 AI 的更精简速查。
+> 冲突时以 V2 为准。V1 `docs/architecture.png` 已过时，见 [ADR-0002](../../docs/adr/0002-architecture-v2-supersedes-png.md)。
 
 ## 自上而下 12 层
 
