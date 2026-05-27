@@ -38,7 +38,7 @@ PRD §2.1 定义了 SaaS / 本地双模式。技术层面共有 **80% 核心 + 2
 
 | 维度 | SaaS 模式 | 本地模式 |
 |---|---|---|
-| **LLM 默认** | 豆包 + Claude（云 API） | Qwen / DeepSeek 本地化部署（vLLM） |
+| **LLM 接入** | 默认接豆包 / 通义 / 智谱 SaaS（API key）；可选接客户自有 LLM | 必须接客户内网 LLM 服务（OpenAI-compatible API）；默认拒绝出域 |
 | **数据存储** | ClickHouse Cloud / 阿里云 OSS | 客户自建 ClickHouse + MinIO |
 | **多租户** | 必须（行级隔离 + IAM） | 单租户简化 |
 | **运维** | 我方托管 K8s | 客户自维护 docker-compose / K8s |
@@ -66,7 +66,9 @@ SaaS 模式:
 │ 客户机房: K8s/docker-compose      │
 │  + 客户 ClickHouse + MinIO        │
 │  + 客户 Vault                     │
-│  + 本地 vLLM (Qwen/DeepSeek)      │
+├──────────────────────────────────┤
+│ 客户自有 LLM 服务（外部依赖）       │
+│  base_url 接入，平台不部署 LLM     │
 └──────────────────────────────────┘
 ```
 
