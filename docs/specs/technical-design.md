@@ -1,10 +1,10 @@
-# 技术设计方案 · AISECOPS
+# 技术设计方案 · AISECOPS（自用版）
 
-- 版本：v0.1
-- 状态：Draft（骨架阶段）
+- 版本：v0.2（自用重写）
+- 状态：Draft
 - 日期：2026-05-26
 - 作者：muzi
-- 关联：[PRD](PRD.md) · [V2 架构](../architecture-v2.md) · [CONSTRAINTS](../../CONSTRAINTS.md)
+- 关联：[PRD](PRD.md) · [V2 架构](../architecture-v2.md) · [CONSTRAINTS](../../CONSTRAINTS.md) · [ADR-0003 自用定位](../adr/0003-self-use-positioning.md)
 
 ---
 
@@ -12,115 +12,105 @@
 
 **总体架构以 V2 文字版为准**：[`docs/architecture-v2.md`](../architecture-v2.md)
 
-本文不再重复架构图，只补充**实现层面的设计**。
+本文不重复架构图，只补充实现层面的设计与选型。
 
 ### 1.1 设计原则速查
-- 分层即职责（CONSTRAINTS C-13）
+- 分层即职责（C-13）
 - LLM 必经 L05 Gateway（C-6）
-- 外部工具必经 L06 MCP（PRINCIPLES P-3）
-- 多模型混合（C-4：LLM + DSLM + ML + 统计 + 静态分析）
+- 外部工具必经 L06 MCP（P-3）
 - HITL 默认（C-8）
-- 反馈飞轮设计（P-10）
+- 抑制幻觉（C-24~C-27）
+- 自用约束：成本控制 + 单人可维护
 
 ---
 
-## 2. 双部署模式设计
+## 2. 部署形态（单一本地部署）
 
-PRD §2.1 定义了 SaaS / 本地双模式。技术层面共有 **80% 核心 + 20% 差异**。
+> 自用项目，**只做一种部署**：在你/你们公司环境跑。
 
-### 2.1 共有核心（不分模式）
-- 全部 L01 ~ L12 代码本身
-- 12 层分层 / 跨层隔离
-- MCP 协议 + 7+1 Agent 架构
-- 配置驱动差异（不重写代码）
+### 2.1 部署目标环境（待确认）
 
-### 2.2 差异点
-
-| 维度 | SaaS 模式 | 本地模式 |
+| 维度 | 候选 | 决策时点 |
 |---|---|---|
-| **LLM 接入** | 默认接豆包 / 通义 / 智谱 SaaS（API key）；可选接客户自有 LLM | 必须接客户内网 LLM 服务（OpenAI-compatible API）；默认拒绝出域 |
-| **数据存储** | ClickHouse Cloud / 阿里云 OSS | 客户自建 ClickHouse + MinIO |
-| **多租户** | 必须（行级隔离 + IAM） | 单租户简化 |
-| **运维** | 我方托管 K8s | 客户自维护 docker-compose / K8s |
-| **更新** | 自动滚动 | 客户手动升级（季度版本） |
-| **合规级别** | ISO 27001 + 等保 2.0 二级 | 等保 2.0 三级 + 个保法 + 数安法 |
-| **数据出域** | 默认本地区域内 | 物理隔离，完全不出域 |
-| **License** | 订阅制（按用量） | 永久 License + 年维 |
+| 跑在哪 | 公司机房 / 公司云服务器 / 个人服务器 | Sprint 1 前 |
+| OS | Rocky 9.4 / Ubuntu 22.04 / 24.04 | 看你们 IT 偏好 |
+| 编排 | docker-compose（推荐起步）/ K8s（如已有 K8s 平台） | docker-compose 优先 |
 
-### 2.3 架构差异图
-```
-SaaS 模式:
-┌──────────────────────────────────┐
-│ 客户 1 │ 客户 2 │ ... │ 客户 N   │  ← 多租户行级隔离
-├──────────────────────────────────┤
-│       L01-L12 共享核心            │
-├──────────────────────────────────┤
-│ 我方托管: K8s + ClickHouse Cloud │
-│           + 阿里云 OSS           │
-└──────────────────────────────────┘
+### 2.2 拓扑（PoC 起步形态）
 
-本地模式:
-┌──────────────────────────────────┐
-│       L01-L12 完整栈              │
-├──────────────────────────────────┤
-│ 客户机房: K8s/docker-compose      │
-│  + 客户 ClickHouse + MinIO        │
-│  + 客户 Vault                     │
-├──────────────────────────────────┤
-│ 客户自有 LLM 服务（外部依赖）       │
-│  base_url 接入，平台不部署 LLM     │
-└──────────────────────────────────┘
 ```
+┌─────────────────────────────────────────────┐
+│ 单节点（PoC / 初期）                          │
+│                                              │
+│  L01 UI (nginx) ── L02 FastAPI ── L05 Gateway│
+│                       │              │       │
+│                       └─ L06 MCP ────┘       │
+│                                              │
+│  数据层（同节点 docker-compose）              │
+│   Postgres / ClickHouse / Kafka / Redis     │
+│   MinIO / Milvus / Vault / Prometheus       │
+│                                              │
+│  外部依赖                                     │
+│   - 客户内网 LLM 或 SaaS LLM API（自选）      │
+│   - 你们现有的 SIEM/EDR（通过 MCP 接入）       │
+└─────────────────────────────────────────────┘
+```
+
+### 2.3 演进路径
+- **PoC 阶段**：单节点 all-in-one docker-compose
+- **生产阶段**（若同事真用起来）：拆 2-3 节点（应用 + 数据 + 中间件）
+- **远期**（不强求）：K8s 化、HA
 
 ---
 
 ## 3. 关键技术选型
 
-每个组件给：**选型** / **备选** / **理由**。所有选型变更必须写 ADR。
+每个组件给：**选型** / **备选** / **理由**。选型变更必须写 ADR。
 
 ### 3.1 主语言 + Web 框架
 
 | 组件 | 选型 | 备选 | 理由 |
 |---|---|---|---|
-| 主语言 | Python 3.11+ | Go / TypeScript | AI 生态最成熟（LangChain/LlamaIndex/MCP SDK） |
-| Web 框架 | FastAPI | Flask / Django | 异步原生、Pydantic 集成、OpenAPI 自动生成 |
-| 异步运行时 | asyncio + uvloop | trio | 主流，生态完善 |
-| 包管理 | uv | poetry / pip | 最快，2025 起业界主流 |
-| Linter / Formatter | ruff | black + isort + flake8 | 一个工具搞定，已在 hooks 配置 |
-| 类型检查 | mypy strict | pyright | 业界标准 |
+| 主语言 | **Python 3.11+** | Go / TypeScript | AI 生态最成熟 |
+| Web 框架 | **FastAPI** | Flask | 异步 + Pydantic + OpenAPI 自动 |
+| 包管理 | **uv** | poetry / pip | 最快 |
+| Linter / Formatter | **ruff** | black + isort | 一个工具搞定 |
+| 类型检查 | **mypy strict** | pyright | 业界标准 |
 
 ### 3.2 Agent / LLM / RAG
 
 | 组件 | 选型 | 备选 | 理由 |
 |---|---|---|---|
-| Agent 编排 | **自研 + LangGraph 借鉴** | LangChain Agents / CrewAI / AutoGen | LangGraph 太重；自研可控、对齐 V2 架构 |
-| LLM Gateway (L05) | **自研** + 借鉴 LiteLLM | LiteLLM 直接用 | 自研便于做出域开关、metadata、降级链（C-32/33/34） |
-| RAG 框架 | **LlamaIndex** | LangChain / Haystack | RAG 专精，Reranker 现成 |
-| Reranker | bge-reranker-v2-m3 | Cohere Rerank | 开源、可本地化（C-32 数据不出域） |
-| Embedding | bge-m3 | text-embedding-3-large | 中文好、可本地 |
-| 向量库 | **Milvus** | Qdrant / Weaviate | 国产、商业化成熟、Milvus Lite 内嵌可用 |
-| 知识图谱 | **Neo4j** | NebulaGraph | 生态成熟；Nebula 留 P2 替换备选 |
+| Agent 编排 | **自研** | LangGraph / LangChain Agents | 自用规模小，自研更轻；LangGraph 太重 |
+| LLM Gateway | **自研** | LiteLLM | 自用要做出域开关 / 成本控制 / stub，自研可控 |
+| RAG 框架 | **LlamaIndex** | LangChain | Reranker 现成 |
+| Reranker | **bge-reranker-v2-m3** | Cohere Rerank（成本） | 开源本地跑，不烧 token |
+| Embedding | **bge-m3** | text-embedding-3-large（成本） | 中文好、本地 |
+| 向量库 | **Milvus Lite**（PoC）→ **Milvus**（生产） | Qdrant / Weaviate | Lite 嵌入式，自用够 |
+| 知识图谱 | 暂不上 | Neo4j（V2 再说） | 自用初期数据不够形成图 |
 
 ### 3.3 MCP 生态
 
 | 组件 | 选型 |
 |---|---|
 | MCP SDK | Anthropic Python SDK |
-| MCP 协议版本 | 跟随官方最新稳定 |
-| Server 框架 | 自研脚手架（`/add-mcp` 命令）|
+| Server 框架 | 自研脚手架（`/add-mcp`） |
+| **V1.0 实现 3 个起步** | Syslog（采集）+ 你们 SIEM/EDR 二选一（数据源）+ 通知（企微/钉钉/邮件 一种） |
 
-### 3.4 数据中台
+### 3.4 数据层（自用规模 → 中间件起步配置）
 
-| 组件 | 选型 | 备选 | 理由 |
-|---|---|---|---|
-| 消息中间件 | **Kafka** | Pulsar / Redis Streams | 业界事实标准 |
-| 时序数据库 | **ClickHouse** | TimescaleDB / Doris | 安全日志典型场景，性能优势 |
-| 对象存储 | **MinIO**（本地）/ OSS（SaaS） | S3 | 双部署天然适配 |
-| 全文检索 | **OpenSearch** | Elasticsearch | 开源，免授权风险 |
-| 流处理 | Flink | Spark Streaming | 状态化处理优势 |
-| 数据湖 | Iceberg | Hudi / Delta | 三选一中最开源 |
+| 组件 | 选型 | 起步部署 |
+|---|---|---|
+| 关系数据库 | **PostgreSQL 16** | docker 单实例 |
+| 时序 / 日志 | **ClickHouse 24.x LTS** | docker 单实例 |
+| 消息中间件 | **Redis Streams**（起步）→ Kafka（如吞吐撑不住） | Redis 单实例 |
+| 对象存储 | **MinIO** | docker 单实例 |
+| 全文检索 | **暂不上**（PG 全文索引够用） | - |
+| 流处理 | **暂不上**（数据量不大，Python 批处理就够） | - |
 
-### 3.5 L05 LLM Gateway 详细设计
+> 自用规模，**Kafka / OpenSearch / Flink 起步全不上**，等数据量真撑不住再加。
+
+### 3.5 L05 LLM Gateway 设计
 
 ```python
 # 模块结构
@@ -128,43 +118,43 @@ src/aisecops/L05_gateway/llm_gateway/
 ├── __init__.py
 ├── gateway.py          # 主入口
 ├── routing.py          # 多 provider 路由
-├── budget.py           # Token 预算 + 计费
+├── budget.py           # ⭐ 自用关键：Token 预算控制 + 月度上限
 ├── desensitize.py      # 出域脱敏（C-32）
-├── outbound_switch.py  # 出域开关
+├── outbound_switch.py  # 出域开关（默认关）
 ├── fallback.py         # 降级链（C-34）
 ├── metadata.py         # 调用 metadata（C-33）
 ├── stub.py             # Stub 模式（C-18）
 └── providers/
-    ├── doubao.py
+    ├── doubao.py       # 默认 SaaS 选项
     ├── tongyi.py
     ├── zhipu.py
-    ├── claude.py
-    └── openai.py
+    ├── openai_compat.py  # 通用 OpenAI-compat（接本地 vLLM/Ollama）
+    └── claude.py        # 出域开关开启才用
 ```
 
-**关键 API**：
+**核心 API**：
 ```python
 async def call(
     prompt: str | list[Message],
     *,
-    scenario: str,           # 必填，如 "L07/alert_triage"
+    scenario: str,              # 必填，如 "L07/alert_triage"
     response_model: Type[BaseModel] | None = None,  # C-21 schema 校验
-    temperature: float = 0,  # C-30 默认 0
+    temperature: float = 0,     # C-30 默认 0
     seed: int | None = None,
     max_tokens: int = 4096,
     cross_check: bool = False,  # C-27 高风险动作启用
     allow_outbound: bool = False,  # C-32 出域开关
+    budget_tag: str = "default", # ⭐ 自用：用于成本分摊
 ) -> LLMResponse:
     """L05 Gateway 统一调用入口。所有 LLM 调用必经此。"""
 ```
 
-### 3.6 L02 Agent 设计
+### 3.6 L02 Agent 接口
 
 ```python
-# 每个 Agent 标准接口
 class Agent(ABC):
     name: str
-    role: str  # orchestrator / triage / ...
+    role: str  # orchestrator / triage / investigation / responder / reporter
     
     @abstractmethod
     async def run(self, task: Task, ctx: AgentContext) -> AgentResult:
@@ -179,81 +169,82 @@ class Agent(ABC):
         ...
 ```
 
-**Orchestrator 调度模式**：基于任务 DAG 而非自由对话。所有跨 Agent 通信走结构化消息（C-21 + PRINCIPLES P-8）。
-
 ### 3.7 部署技术栈
 
 | 维度 | 选型 | 最低版本 |
 |---|---|---|
-| 容器化 | Docker + BuildKit | Docker 24.0+ |
-| 容器运行时 | Docker / containerd | containerd 1.7+ |
-| 编排（SaaS） | **K8s 必须** | 1.28+ |
-| 编排（本地） | K8s 或 docker-compose（二选一） | K8s 1.28+ / docker-compose v2.20+ |
-| Helm | Helm 3 | 3.14+ |
-| 服务发现 | K8s Service / Consul（备选） | - |
-| 配置管理 | Pydantic Settings + envfile | - |
-| 凭证 | HashiCorp Vault（本地 / SaaS）+ 阿里云 KMS（SaaS 备选） | Vault 1.16+ |
-| 可观测 | OpenTelemetry + Tempo（trace）+ Loki（log）+ Prometheus（metric） | OTel Collector 0.105+ |
-| 监控告警 | Grafana + Alertmanager | Grafana 11+ |
-| CI / CD | GitHub Actions + ArgoCD（生产） | - |
+| 容器 | Docker | 24.0+ |
+| 编排 | **docker-compose**（起步）/ K8s（如需） | v2.20+ / 1.28+ |
+| 配置 | Pydantic Settings + .env | - |
+| 凭证 | Vault | 1.16+ |
+| 可观测 | OpenTelemetry + Loki + Prometheus + Grafana | OTel 0.105+ |
+| CI / CD | GitHub Actions | - |
 
-**完整版本矩阵与 OS 兼容性**：见 [compatibility.md](compatibility.md)（权威）。
+完整版本：见 [compatibility.md](compatibility.md)。
 
-**部署模式硬性约束**：
-- SaaS 模式：**必须 K8s 1.28+**（不接受 docker-compose 生产）
-- 本地模式：**必须支持完全离线部署**（含镜像 tar / 依赖仓库 / LLM 权重）
-- 平台只产出 `linux/amd64` 镜像，**不支持 ARM64**（V2 评估鲲鹏/飞腾）
+**自用关键约束**：
+- 单节点 PoC 资源：**8 vCPU / 32 GB / 600 GB SSD** 即可
+- **GPU 不在平台需求**，LLM 走 API
+- 离线部署能力**可保留**（接本地 LLM 就不需要外网）
 
 ---
 
-## 4. 接口设计
+## 4. 内部接口设计（自用简版）
 
-### 4.1 内部接口
-- **HTTP**：L01 ↔ L02 用 OpenAPI（FastAPI 自动生成）
-- **Agent 间通信**：内存 Queue（单进程）或 Kafka（分布式）；消息 schema 走 Pydantic
-- **MCP**：JSON-RPC over stdio / HTTP（MCP 官方协议）
+### 4.1 接口形态
+- **L01 ↔ L02**：HTTP（FastAPI 自动 OpenAPI）
+- **L02 Agent 间通信**：内存 Queue（PoC）→ Redis Streams（生产）
+- **L02 ↔ L05/L06**：函数调用（同进程）
+- **MCP**：JSON-RPC over stdio / HTTP（官方协议）
 
-### 4.2 对外 API
-- 主要 OpenAPI（生成在 `/openapi.json`）
-- 详细 endpoint 设计待 P0 阶段补充（设计原则：RESTful + 资源化）
+### 4.2 内部 RBAC（3 角色简版）
 
-### 4.3 Webhook
-- 入：Prometheus / Zabbix / 各 SIEM 告警 webhook
-- 出：邮件 / 企微 / 钉钉 / 自定义 webhook
+| 角色 | 能做 | 不能做 |
+|---|---|---|
+| 管理员 | 全部 + 配置 + HITL 审批 + 查所有 | - |
+| 分析师 | 看告警 / 调查 / 标注 / Chat | 配置 / HITL 审批高风险 |
+| 普通查看 | 看仪表盘 / 自己关注的告警 | 操作 |
+
+实现：FastAPI 依赖注入 + 简单的角色装饰器。**不做** OAuth / SSO 复杂集成（用 LDAP 或公司 IDP 简单对接即可）。
 
 ---
 
-## 5. 数据流（实现层面）
+## 5. 数据流（自用 PoC 路径）
 
-V2 架构文档画了**逻辑数据流**，本节补充**实现层的数据流**：
+### 5.1 告警分诊路径
 
-### 5.1 告警分诊路径（典型）
 ```
-SIEM Webhook → FastAPI /webhook/alert (L01)
-            → Kafka topic: alerts.raw (L10)
-            → Flink Job: alert-normalize (L09)
-            → ClickHouse: alerts (L09)
-            → L08 correlation (定时扫描 / Kafka 触发)
-            → 高风险告警 → Kafka topic: triage.pending
-            → L02 Triage Agent 消费
-              → L03 RAG 查相似历史
-              → L04 LLM 推理 (经 L05 Gateway)
-              → L06 MCP 富化 (IP 归属 / IoC 关联)
-              → 结构化结果落 ClickHouse: triage.results
-            → 若高置信度 + 写操作 → L02 Responder + HITL Channel
-            → L01 工单 UI 通知
+你们 SIEM/EDR ─── webhook ────► FastAPI /webhook/alert (L01)
+                                    ↓
+                            Redis Streams: alerts.raw
+                                    ↓
+                  L09 Python 批处理：归一化 + 入 ClickHouse
+                                    ↓
+              定时扫描 / 实时触发 → L08 关联分析
+                                    ↓
+                       高风险 → L02 Triage Agent
+                       ├─ L03 RAG 查相似历史
+                       ├─ L04 LLM 经 L05 Gateway
+                       └─ L06 MCP 富化（IP / IoC / CMDB）
+                                    ↓
+                         结构化结果落 ClickHouse
+                                    ↓
+                高置信度 + 写操作 → HITL Channel
+                                    ↓
+                    L01 工单 UI → 你 / 同事审批
 ```
 
-### 5.2 反馈飞轮路径（V2 新增）
+### 5.2 反馈飞轮（V2 架构必备，但自用简化版）
+
 ```
-L01 工单决策（分析师"确认/否决/修正"）
-  → Kafka topic: analyst.feedback
-  → L02 Tuning Agent 消费
-  → 写入 feedback store (ClickHouse)
-  → 周期任务（每周）从 feedback store 生成训练样本
-  → 触发 L04 DSLM fine-tune pipeline
-  → 新版 DSLM shadow mode 评估（PRINCIPLES P-11）
-  → 通过 → 切流量
+L01 标注（确认/否决/修正）→ Redis Streams: analyst.feedback
+                                   ↓
+                           L02 Tuning Agent（周扫一次）
+                                   ↓
+            写 feedback store（ClickHouse）→ 用于：
+              ① 调 Prompt（人工 + AI 协同迭代）
+              ② **不训 DSLM**（自用数据量不够，V3+ 再说）
+              ③ 调阈值（置信度 / abstain 触发线）
 ```
 
 ---
@@ -262,43 +253,42 @@ L01 工单决策（分析师"确认/否决/修正"）
 
 | 决策 | ADR |
 |---|---|
-| 采用 12 层架构 | [ADR-0001](../adr/0001-architecture-baseline.md) |
-| V2 文字版取代 V1 PNG | [ADR-0002](../adr/0002-architecture-v2-supersedes-png.md) |
-| 主语言 Python | 待补 ADR-0003 |
-| Agent 编排自研 vs LangGraph | 待补 ADR-0004 |
-| 数据中台选型 | 待补 ADR-0005 |
-| 向量库选型 Milvus | 待补 ADR-0006 |
+| 12 层架构 | [ADR-0001](../adr/0001-architecture-baseline.md) |
+| V2 取代 V1 PNG | [ADR-0002](../adr/0002-architecture-v2-supersedes-png.md) |
+| 自建自用定位 | [ADR-0003](../adr/0003-self-use-positioning.md) |
+| 主语言 Python | 待补 ADR-0004 |
+| Agent 编排自研 | 待补 ADR-0005 |
+| 数据中间件起步 Redis Streams | 待补 ADR-0006 |
 
 ---
 
-## 7. 演进路径
+## 7. 演进路径（务实版）
 
-### 7.1 单体 → 微服务
-**V1.0：单 Python 进程 + Kafka 解耦** 即可。
-**V2.0（客户超 100 家或 EPS > 100K 时）**：按层拆服务：
-- L05 Gateway 独立服务（横切）
-- L06 MCP 各自独立服务
-- L02 Agent Worker 池
-- L08 算法引擎独立服务（资源密集）
+### 7.1 PoC → 团队上线
+- 单节点 docker-compose
+- 同事真用起来 → 加 RBAC + 数据备份
 
-### 7.2 单实例 → 多区域
-SaaS 模式 V2.0 起支持多区域部署，按客户数据所在地路由。
+### 7.2 团队上线 → 数据撑不住
+- 数据节点单拆（ClickHouse 独立）
+- Kafka 替换 Redis Streams（如吞吐 > 1K EPS）
 
-### 7.3 国内 → 出海（如有）
-- LLM 切 Claude / Gemini
-- 合规切 SOC2 + GDPR
-- UI 国际化
+### 7.3 远期可能（不强求）
+- K8s 化
+- HA / 灾备
+- DSLM 训练（**前提**：累积了 5000+ 标注样本）
+- 多团队隔离（如果公司其他部门也想用）
+
+### 7.4 假如未来想商业化
+按 [ADR-0003](../adr/0003-self-use-positioning.md) 后续动作补：
+- 多租户（行级隔离 / Schema 级）
+- 合规对照矩阵
+- 双部署模式（加回 SaaS）
+- 客户文档体系
+
+**预计增量 3-6 个月**。12 层架构本身不需要推翻。
 
 ---
 
 ## 8. 待决策事项
 
-- [ ] **ADR-0003**：主语言为何选 Python（vs Go）—— 性能 trade-off 需正式记录
-- [ ] **ADR-0004**：Agent 编排框架（自研 vs LangGraph vs CrewAI）—— 需 PoC 比较
-- [ ] **ADR-0005**：数据中台选型（ClickHouse vs StarRocks vs Doris）
-- [ ] **ADR-0006**：向量库（Milvus vs Qdrant）
-- [ ] **HITL Channel 实现**：is 独立 UI 队列还是嵌入工单系统？
-- [ ] **多租户隔离粒度**：行级 / Schema 级 / 物理级？
-- [ ] **DSLM 训练管道**：自建 vs 用阿里云 PAI / 腾讯云 TI？
-
-每条待 P0 阶段启动前明确。
+按 PRD §9 的 5 条决策（跑在哪 / 数据源 / LLM / 通知 / CMDB），在 Sprint 1 启动前明确，每条进一份 ADR。

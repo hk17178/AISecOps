@@ -4,7 +4,9 @@
 
 ## 项目一句话
 
-AISECOPS 是一个对标 Microsoft Security Copilot / CrowdStrike Charlotte / 奇安信 QAX-GPT 的国产 **AI 驱动安全运营平台**，按 12 层架构组织，从立项起就把"SEC"做成一等公民——不是 AIOps + Chat 的套壳。
+AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小公司/部门 10-100 人规模用，按 12 层架构组织，把"SEC"做成一等公民——业界对标 Charlotte/Copilot/QAX-GPT 但**不为了赢竞品**，是为了学透 AISecOps + 解决自己的 SOC 痛点。
+
+**定位见 [ADR-0003 自用](docs/adr/0003-self-use-positioning.md)**。不做：商业化 / 多租户 / 合规认证 / 双部署模式。
 
 ## 当前阶段
 

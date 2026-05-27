@@ -335,19 +335,20 @@ CI 至少覆盖 5 个组合，发布前 SRE 实机演练 7 个组合。
 
 ---
 
-## 13. 客户兼容性承诺书（售前模板）
+## 13. 自用环境承诺（内部参考）
 
-> AISECOPS V1.0 在以下环境**承诺可部署、可正常运行、提供原厂支持**：
-> - 操作系统：Rocky Linux 9.4+ / RHEL 9.4+ / AlmaLinux 9.4+ / Ubuntu 22.04 LTS / Ubuntu 24.04 LTS
-> - CPU：x86_64
-> - 编排：K8s 1.28+ （SaaS 模式必须 / 本地模式可选）或 docker-compose v2.20+（本地模式可选）
+> 自建自用项目 ([ADR-0003](../adr/0003-self-use-positioning.md))，**无客户承诺书**。本节是给你自己和同事看的内部参考。
+
+> AISECOPS V1.0 自用版承诺**自己环境**可跑：
+> - 操作系统：Rocky / RHEL / AlmaLinux 9.4+ 或 Ubuntu 22.04 / 24.04 LTS（x86_64）
+> - 编排：docker-compose v2.20+（PoC 起步）或 K8s 1.28+（如你们已有）
 > - 容器：Docker 24+ 或 containerd 1.7+
-> - 本地模式支持完全离线部署（平台自身）
-> - LLM 接入：本地 OpenAI-compatible API 或 SaaS LLM API key
+> - 离线能力保留（如需要可断网跑）
+> - LLM 接入：本地 OpenAI-compatible API 或 SaaS LLM API key 任选
 
-> **客户自备**：LLM 推理服务（vLLM/Ollama/客户私有云 LLM 或 SaaS LLM 订阅）及其 GPU 硬件。
+> **你 / 同事 / IT 部门负责**：LLM 推理服务（vLLM/Ollama/客户私有云 LLM 或 SaaS LLM 订阅）及其 GPU 硬件。
 
-> 以下环境**不在 V1.0 范围**：openEuler、麒麟、UOS、ARM64、Windows、macOS（生产）。
+> 以下环境本版本不测试：openEuler、麒麟、UOS、ARM64、Windows、macOS（生产）。
 
 ---
 
