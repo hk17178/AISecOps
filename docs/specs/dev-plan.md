@@ -48,7 +48,7 @@
 
 **目标**：把项目能跑、能 CI、能观测起来。
 
-- **S1.1** 决策落地：写 ADR-0004 ~ ADR-0006（主语言 / Agent 编排 / 数据中间件）+ 5 条 PRD §9 待决策事项
+- **S1.1** 决策落地：写 ADR-0005 ~ ADR-0007（主语言 / Agent 编排 / 数据中间件；ADR-0004 已被 L06 形态占用）+ 5 条 PRD §9 待决策事项
 - **S1.2** Python 环境：pyproject.toml + uv + ruff + mypy
 - **S1.3** Docker：Dockerfile + docker-compose.yml（PG + ClickHouse + Redis + MinIO + Vault）
 - **S1.4** CI：GitHub Actions（lint + type + test 三步）
@@ -250,7 +250,7 @@ S3 L02 Orchestrator + Triage ── S4 L06 MCP + alert_triage (M2 P0 完成)
 ## 8. DoD 通用清单
 
 每个 Sprint 交付：
-- [ ] 功能实现 + 单测 ≥ 70%（**自用降到 70%**）
+- [ ] 功能实现 + 单测 ≥ 70%（自用基线；**核心模块如 L05 Gateway ≥ 80%**）
 - [ ] 集成测试 1+ 个 happy path
 - [ ] 模块 README + 必要时 ADR
 - [ ] CI 全绿

@@ -62,7 +62,7 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 - 解释一律以"对标业界基线"为切入点（用户对 AISecOps 业界很了解，喜欢这个口径）
 - 零运维理念：能用托管/Serverless 不用自维护
 - 不要把秘密/凭证/模型权重提交进仓库
-- 与架构图冲突时一律以 PNG 为准
+- 与架构冲突时一律以 [docs/architecture-v2.md](docs/architecture-v2.md) 文字权威为准（V1 PNG 已 superseded，见 ADR-0002）
 
 ## 当前 git 状态
 

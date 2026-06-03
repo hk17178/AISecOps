@@ -214,7 +214,8 @@ class Agent(ABC):
 ### 5.1 告警分诊路径
 
 ```
-你们 SIEM/EDR ─── webhook ────► FastAPI /webhook/alert (L01)
+你们 SIEM/EDR ─── webhook ────► L10 采集入口 /ingest/alert
+                                （机器入站属采集层，非 L01 人机交互）
                                     ↓
                             Redis Streams: alerts.raw
                                     ↓
@@ -256,9 +257,10 @@ L01 标注（确认/否决/修正）→ Redis Streams: analyst.feedback
 | 12 层架构 | [ADR-0001](../adr/0001-architecture-baseline.md) |
 | V2 取代 V1 PNG | [ADR-0002](../adr/0002-architecture-v2-supersedes-png.md) |
 | 自建自用定位 | [ADR-0003](../adr/0003-self-use-positioning.md) |
-| 主语言 Python | 待补 ADR-0004 |
-| Agent 编排自研 | 待补 ADR-0005 |
-| 数据中间件起步 Redis Streams | 待补 ADR-0006 |
+| L06 形态：MCP 可选 + 薄适配器 | [ADR-0004](../adr/0004-l06-mcp-optional-thin-adapter.md) |
+| 主语言 Python | 待补 ADR-0005 |
+| Agent 编排自研 | 待补 ADR-0006 |
+| 数据中间件起步 Redis Streams | 待补 ADR-0007 |
 
 ---
 
