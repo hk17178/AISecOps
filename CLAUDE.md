@@ -50,7 +50,7 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 
 ## 工作流速查
 
-- **要新增 MCP Server**：用 `/add-mcp <name>` 一键生成骨架，**不要手写**
+- **要新增外部工具（L06）**：用 `/add-mcp <category> <name>` 生成骨架，**不要手写**。默认产**薄适配器**；只有确需远程/授权握手才加 `--full` 产完整 MCP Server（见 [ADR-0004](docs/adr/0004-l06-mcp-optional-thin-adapter.md)）
 - **要新增 L02 Agent**：用 `/add-agent <role>` 一键生成骨架
 - **要验证某层完整度**：用 `/verify-layer L0X`
 - **跨层调用**：禁止跨层直连（如 L07 直接调 L10），必须经 L02 Orchestrator 编排或 L08 算法层

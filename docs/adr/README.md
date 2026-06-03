@@ -42,3 +42,4 @@
 | [0001](0001-architecture-baseline.md) | 采用 12 层架构作为 AISecOps 基线 | Accepted |
 | [0002](0002-architecture-v2-supersedes-png.md) | 架构 V2 取代 V1 PNG 成为视觉权威 | Accepted |
 | [0003](0003-self-use-positioning.md) | 项目定位为"自建自用内部工具" | Accepted |
+| [0004](0004-l06-mcp-optional-thin-adapter.md) | L06 执行形态：MCP 降级为可选，默认薄适配器 + code execution | Accepted |
