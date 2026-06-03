@@ -80,14 +80,19 @@
 
 | 动效 | 规格 | 用途 |
 |---|---|---|
-| **卡片翻牌** | `transform:rotateY(180deg)`；`.6s cubic-bezier(.4,.2,.2,1)`；`preserve-3d` + `backface-visibility:hidden` | 统计卡正面看数字，点击翻面看拆分明细 |
+| **卡片翻牌（悬停）** | `.flip:hover .inner{transform:rotateY(180deg)}`；`.6s cubic-bezier(.4,.2,.2,1)`；`preserve-3d` + `backface-visibility:hidden`。**鼠标移上翻面、移走自动翻回**（纯 CSS `:hover`，非点击） | 统计卡正面看数字，悬停看拆分明细 |
+| **数字滚动计数** | 进页/路由切换时，统计数字从 0 缓动到目标（`~0.9s` easeOutCubic，保留千分位与前后缀 `¥`/`%`） | 数据"活"起来，强化数字感 |
+| **进度条生长** | `.bar i` 宽度从 0 过渡到目标，`width .95s cubic-bezier(.3,.1,.2,1)` | 预算/降噪占比条 |
+| **列表/卡片错峰淡入** | `fadeUp .5s both` + 逐项 `animation-delay`（卡片 80ms 步进 / 列表行 70ms / 证据 80ms） | 内容入场有节奏，不"啪"地全出 |
 | **页面切换** | `fadeUp .34s ease`（opacity 0→1 + translateY 10px→0） | 菜单路由切换内容区 |
 | **详情交叉淡入** | `opacity .25s`，换内容前加 `.swap`（opacity:0），220ms 后替换 | 点不同告警行，右侧详情切换 |
+| **严重告警呼吸点** | 仅 `.d-crit`（严重/真威胁）：`pulse 2.4s` 赤陶色光环呼吸（box-shadow 扩散渐隐） | 把眼睛**只**引向最高危，克制不滥用 |
+| **卡片悬停微抬** | `.card:hover`：`translateY(-1px)` + 边框转 `clay`，`.2s` | 可交互暗示 |
 | **导航/行 hover** | `background .15s` | 悬停反馈 |
-| **按钮按下** | `transform:translateY(1px) .1s` | 点击反馈 |
+| **主按钮** | hover 加柔光 `box-shadow 0 3px 12px rgba(176,81,47,.25)`；按下 `translateY(1px) .1s` | 点击反馈 |
 | **Toast** | 底部居中，`.3s` 滑入淡入，1.9s 自停 | 操作结果提示 |
 
-> 原则：**单个动效 ≤ 0.6s**，缓动统一，不做弹跳/旋转炫技。`点击翻面` 提示文字与 `?flip=1` URL 参数仅供演示，正式版去掉。
+> 原则：**单个动效 ≤ 0.95s**，缓动统一，不做弹跳/旋转/霓虹炫技（那是 AI 味）。呼吸点只给最高危一处。`悬停看明细` 提示文字与 `?flip=1` URL 参数仅供演示，正式版去掉。
 
 ---
 

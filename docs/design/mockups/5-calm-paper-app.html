@@ -26,9 +26,9 @@
   @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
   /* flip stat cards */
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:26px}
-  .flip{perspective:1200px;height:120px;cursor:pointer}
+  .flip{perspective:1200px;height:120px}
   .flip .inner{position:relative;width:100%;height:100%;transition:transform .6s cubic-bezier(.4,.2,.2,1);transform-style:preserve-3d}
-  .flip.is-flipped .inner{transform:rotateY(180deg)}
+  .flip:hover .inner,.flip.is-flipped .inner{transform:rotateY(180deg)}
   .face{position:absolute;inset:0;backface-visibility:hidden;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center}
   .face.back{transform:rotateY(180deg);background:var(--paper2)}
   .face .l{font-size:13px;color:var(--dim);margin-bottom:6px}
@@ -65,7 +65,18 @@
   .btn.go:hover{background:#9a4527}
   /* misc widgets */
   .bar{height:8px;background:var(--paper2);border-radius:5px;overflow:hidden;margin-top:6px}
-  .bar i{display:block;height:100%;background:var(--terra);border-radius:5px}
+  .bar i{display:block;height:100%;background:var(--terra);border-radius:5px;transition:width .95s cubic-bezier(.3,.1,.2,1)}
+  /* 特效：列表/卡片错峰淡入 */
+  .view .item,.view .ev,.view .flip{animation:fadeUp .5s both}
+  /* 特效：严重告警呼吸点（仅 d-crit，克制） */
+  .dotc.d-crit{animation:pulse 2.4s ease-out infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(176,81,47,.45)}70%,100%{box-shadow:0 0 0 5px rgba(176,81,47,0)}}
+  /* 特效：卡片悬停微抬 */
+  .card{transition:border-color .2s,transform .2s}
+  .card:hover{border-color:var(--clay);transform:translateY(-1px)}
+  /* 特效：主按钮悬停微光 */
+  .btn.go{transition:background .15s,transform .1s,box-shadow .2s}
+  .btn.go:hover{box-shadow:0 3px 12px rgba(176,81,47,.25)}
   .row2{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dotted var(--line);font-size:14px}
   .pill{font-size:12px;padding:1px 9px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
   .pill.ok{color:var(--sage);border-color:var(--sage)} .pill.warn{color:var(--ochre);border-color:var(--ochre)} .pill.t{color:var(--terra);border-color:var(--terra)}
@@ -121,7 +132,7 @@
 <div id="toast"></div>
 <script>
 const flipCard=(l,n,cls,back)=>`<div class="flip"><div class="inner">
-  <div class="face"><span class="hint">点击翻面 ⤺</span><div class="l">${l}</div><div class="n ${cls}">${n}</div></div>
+  <div class="face"><span class="hint">悬停看明细 ⤺</span><div class="l">${l}</div><div class="n ${cls}">${n}</div></div>
   <div class="face back"><div class="bt">${l} · 明细</div>${back}</div></div></div>`;
 const brk=(a,b)=>`<div class="brk"><span>${a}</span><span>${b}</span></div>`;
 
@@ -292,13 +303,31 @@ function go(r){const R=ROUTES[r];if(!R)return;
   view.innerHTML=R.html();
   document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===r));
   bindView();}
+function countUp(el){
+  const m=el.textContent.trim().match(/^([^\d]*)([\d,]+)(.*)$/);if(!m)return;
+  const pre=m[1],suf=m[3],target=parseInt(m[2].replace(/,/g,''),10);if(isNaN(target))return;
+  const dur=900,t0=performance.now();
+  (function tick(t){let p=Math.min(1,(t-t0)/dur);p=1-Math.pow(1-p,3);
+    el.textContent=pre+Math.round(target*p).toLocaleString('en-US')+suf;
+    if(p<1)requestAnimationFrame(tick);})(t0);
+}
 function bindView(){
-  view.querySelectorAll('.flip').forEach(f=>f.onclick=()=>f.classList.toggle('is-flipped'));
+  // 数字滚动计数（仅正面）
+  view.querySelectorAll('.face:not(.back) .n').forEach(countUp);
+  // 进度条生长
+  view.querySelectorAll('.bar i').forEach(b=>{const w=b.style.width;b.style.width='0';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{b.style.width=w;}));});
+  // 列表错峰淡入
+  view.querySelectorAll('.flip').forEach((f,i)=>f.style.animationDelay=(i*80)+'ms');
+  view.querySelectorAll('.view .item, #alist .item').forEach((it,i)=>it.style.animationDelay=(i*70)+'ms');
+  view.querySelectorAll('.ev').forEach((e,i)=>e.style.animationDelay=(i*80)+'ms');
+  // 告警行点击联动详情
   const al=view.querySelector('#alist');
   if(al)al.querySelectorAll('.item').forEach(it=>it.onclick=()=>{
     al.querySelectorAll('.item').forEach(x=>x.classList.remove('sel'));it.classList.add('sel');
     const d=document.getElementById('detail');d.classList.add('swap');
-    setTimeout(()=>{d.innerHTML=detail(it.dataset.a);d.classList.remove('swap');},220);});
+    setTimeout(()=>{d.innerHTML=detail(it.dataset.a);d.classList.remove('swap');
+      d.querySelectorAll('.ev').forEach((e,i)=>e.style.animationDelay=(i*80)+'ms');},220);});
 }
 document.getElementById('nav').addEventListener('click',e=>{const a=e.target.closest('a[data-r]');if(a){e.preventDefault();go(a.dataset.r);}});
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1900);}
