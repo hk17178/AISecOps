@@ -10,6 +10,7 @@
 | [technical-design.md](technical-design.md) | 技术设计（自用版）：单一本地部署 / 务实选型 | Draft v0.2 |
 | [dev-plan.md](dev-plan.md) | 开发计划（自用版）：8 Sprint / 16 周到同事用起来 | Draft v0.2 |
 | [compatibility.md](compatibility.md) | 系统兼容性矩阵：OS / CPU / 容器 / K8s / 端口 / 硬件 | Accepted v0.1 |
+| [L05-impl-plan.md](L05-impl-plan.md) | L05 LLM Gateway 实现计划（Sprint 2）：TDD / stub-first / S0–S12 | Draft v0.1 |
 
 ## 待补（自用优先级）
 
