@@ -38,6 +38,7 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 | **技术设计方案** | [docs/specs/technical-design.md](docs/specs/technical-design.md) |
 | **开发计划** | [docs/specs/dev-plan.md](docs/specs/dev-plan.md) |
 | **系统兼容性矩阵** | [docs/specs/compatibility.md](docs/specs/compatibility.md) |
+| **前端设计语言规范（L01）** | [docs/design/frontend-design-language.md](docs/design/frontend-design-language.md) |
 | **架构 V2 文字版（视觉权威）** | [docs/architecture-v2.md](docs/architecture-v2.md) |
 | 架构 V1 PNG（已过时，仅历史参考） | ~~docs/architecture.png~~ — superseded，见 [ADR-0002](docs/adr/0002-architecture-v2-supersedes-png.md) |
 | 12 层精炼说明（给 AI 用） | [.claude/context/architecture.md](.claude/context/architecture.md) |

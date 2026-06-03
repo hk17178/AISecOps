@@ -1,0 +1,115 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<title>风格1·终端密集</title>
+<style>
+  :root{--bg:#0a0e0d;--panel:#0f1513;--side:#0c1110;--line:#1d2925;--fg:#c4d1c9;--dim:#6c7a73;
+        --amber:#f2a73b;--green:#3fd99a;--red:#ff5c52;--cyan:#4ad6e0;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font:13px/1.45 ui-monospace,"SF Mono",Menlo,Consolas,monospace;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:212px 1fr;height:100vh}
+  /* sidebar */
+  .side{background:var(--side);border-right:1px solid var(--line);overflow:auto}
+  .logo{padding:12px 14px;border-bottom:1px solid var(--line);color:var(--green);font-weight:700;letter-spacing:1px;display:flex;align-items:center;gap:8px}
+  .logo .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
+  .nav{padding:8px 0}
+  .grp{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;padding:12px 14px 5px}
+  .nav a{display:flex;align-items:center;gap:8px;padding:6px 14px;color:var(--fg);text-decoration:none;border-left:2px solid transparent}
+  .nav a:hover{background:#121a17}
+  .nav a.on{color:var(--amber);border-left-color:var(--amber);background:#13201b}
+  .nav a .g{color:var(--dim);width:12px;display:inline-block}
+  .nav a.on .g{color:var(--amber)}
+  .badge{margin-left:auto;background:var(--red);color:#0a0e0d;font-size:10px;padding:0 5px;border-radius:2px}
+  .tagv2{margin-left:auto;color:var(--dim);font-size:9px;border:1px solid var(--line);padding:0 4px}
+  /* main */
+  .main{display:flex;flex-direction:column;min-width:0}
+  .bar{display:flex;align-items:center;gap:18px;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .bar .crumb{color:var(--dim)} .bar .crumb b{color:var(--fg)}
+  .bar .sp{flex:1} .bar .k{color:var(--dim)} .bar .v{color:var(--amber)}
+  .strip{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+  .strip div{padding:10px 16px;border-right:1px solid var(--line)}
+  .strip .n{font-size:22px} .strip .l{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+  .strip .c{color:var(--red)} .strip .a{color:var(--amber)}
+  .body{display:grid;grid-template-columns:1.6fr 1fr;flex:1;min-height:0}
+  .list{border-right:1px solid var(--line);overflow:auto}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;color:var(--dim);font-weight:400;font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:8px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg)}
+  td{padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tr:hover td{background:#121a17} tr.sel td{background:#13201b}
+  .sev{padding:1px 6px;border:1px solid;font-size:11px}
+  .crit{color:var(--red);border-color:var(--red)} .hi{color:var(--amber);border-color:var(--amber)}
+  .mid{color:var(--cyan);border-color:var(--cyan)} .lo{color:var(--dim);border-color:var(--dim)}
+  .vd-t{color:var(--red)} .vd-w{color:var(--amber)} .vd-f{color:var(--dim)} .conf{color:var(--green)}
+  .detail{padding:14px 16px;overflow:auto}
+  .detail h2{font-size:14px;font-weight:600;margin-bottom:2px}
+  .detail .meta{color:var(--dim);font-size:11px;margin-bottom:14px}
+  .verdict{border:1px solid var(--red);padding:8px 10px;margin-bottom:14px}
+  .verdict .big{color:var(--red);font-size:16px}
+  .sectit{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px;border-bottom:1px dashed var(--line);padding-bottom:4px}
+  .ev{margin:6px 0;padding-left:14px;position:relative} .ev:before{content:"›";position:absolute;left:0;color:var(--green)}
+  .ev .src{color:var(--cyan);font-size:11px}
+  .act{display:flex;gap:8px;margin-top:16px}
+  .btn{flex:1;text-align:center;padding:8px;border:1px solid var(--line);color:var(--fg);cursor:pointer;background:#0c1210}
+  .btn.go{border-color:var(--red);color:var(--red)}
+  .hitl{color:var(--amber);border:1px dashed var(--amber);padding:3px 8px;display:inline-block;font-size:11px;margin-bottom:10px}
+</style></head><body>
+<div class="app">
+  <aside class="side">
+    <div class="logo"><span class="dot"></span>AISECOPS</div>
+    <nav class="nav">
+      <div class="grp">概览</div>
+      <a href="#"><span class="g">▤</span>仪表盘</a>
+      <div class="grp">安全运营</div>
+      <a href="#" class="on"><span class="g">▸</span>告警分诊<span class="badge">38</span></a>
+      <a href="#"><span class="g">◇</span>事件调查</a>
+      <a href="#"><span class="g">⌖</span>威胁狩猎<span class="tagv2">V2</span></a>
+      <a href="#"><span class="g">⚙</span>SOAR 处置</a>
+      <div class="grp">协作</div>
+      <a href="#"><span class="g">▦</span>工单 &amp; HITL<span class="badge">6</span></a>
+      <a href="#"><span class="g">›_</span>Chat 助手</a>
+      <a href="#"><span class="g">▥</span>报表中心</a>
+      <div class="grp">资产 · 情报</div>
+      <a href="#"><span class="g">▢</span>资产 CMDB</a>
+      <a href="#"><span class="g">◈</span>威胁情报</a>
+      <div class="grp">平台</div>
+      <a href="#"><span class="g">◉</span>AI Agent</a>
+      <a href="#"><span class="g">⊞</span>MCP 工具</a>
+      <a href="#"><span class="g">¶</span>Prompt 治理</a>
+      <a href="#"><span class="g">¥</span>模型 &amp; 成本</a>
+      <a href="#"><span class="g">⚒</span>系统设置</a>
+    </nav>
+  </aside>
+  <div class="main">
+    <div class="bar"><span class="crumb">安全运营 / <b>告警分诊</b></span>
+      <span class="sp"></span><span class="k">EPS</span> <span class="v">412</span>
+      <span class="k">引擎</span> <span class="v">OK</span><span class="k">analyst@soc</span></div>
+    <div class="strip">
+      <div><div class="l">今日告警</div><div class="n">1,284</div></div>
+      <div><div class="l">真威胁</div><div class="n c">23</div></div>
+      <div><div class="l">待审 HITL</div><div class="n a">6</div></div>
+      <div><div class="l">本月 Token</div><div class="n">¥312</div></div>
+    </div>
+    <div class="body">
+      <div class="list"><table>
+        <thead><tr><th>时间</th><th>级别</th><th>来源</th><th>告警</th><th>研判</th><th>置信</th></tr></thead>
+        <tbody>
+          <tr class="sel"><td>09:42:17</td><td><span class="sev crit">CRIT</span></td><td>EDR·Falcon</td><td>检测到横向移动 (PsExec)</td><td class="vd-t">真威胁</td><td class="conf">0.94</td></tr>
+          <tr><td>09:38:02</td><td><span class="sev hi">HIGH</span></td><td>SIEM·Splunk</td><td>境外IP多次失败后登录成功</td><td class="vd-w">待研判</td><td class="conf">0.61</td></tr>
+          <tr><td>09:31:55</td><td><span class="sev mid">MED</span></td><td>防火墙</td><td>出站连接到已知 C2 域名</td><td class="vd-t">真威胁</td><td class="conf">0.88</td></tr>
+          <tr><td>09:20:11</td><td><span class="sev lo">LOW</span></td><td>Syslog</td><td>sudo 提权频次异常</td><td class="vd-f">误报</td><td class="conf">0.27</td></tr>
+          <tr><td>09:05:48</td><td><span class="sev hi">HIGH</span></td><td>NDR</td><td>DNS 隧道疑似数据外泄</td><td class="vd-w">待研判</td><td class="conf">0.55</td></tr>
+        </tbody></table></div>
+      <div class="detail">
+        <span class="hitl">⚑ 需 HITL 审批</span>
+        <h2>检测到横向移动 (PsExec)</h2>
+        <div class="meta">ALERT-2026-0609-0042 · WIN-APP-07 · 09:42:17</div>
+        <div class="verdict"><div style="color:var(--dim);font-size:11px">AI 分诊结论</div><span class="big">真威胁</span> · 置信度 <span class="conf">0.94</span></div>
+        <div class="sectit">证据链（含引用）</div>
+        <div class="ev">5 分钟内对 6 台主机发起 PsExec <span class="src">[EDR 进程树 #e8f2]</span></div>
+        <div class="ev">凭证 svc_backup 非常规时段登录 <span class="src">[AD 日志 #a193]</span></div>
+        <div class="ev">目标含域控 DC-01 <span class="src">[CMDB 资产 #c001]</span></div>
+        <div class="sectit">建议处置</div>
+        <div>隔离 WIN-APP-07 + 禁用 svc_backup</div>
+        <div class="act"><div class="btn go">批准隔离</div><div class="btn">驳回</div><div class="btn">转人工</div></div>
+      </div>
+    </div>
+  </div>
+</div></body></html>

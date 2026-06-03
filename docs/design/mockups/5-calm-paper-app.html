@@ -1,0 +1,309 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AISECOPS · 暖纸交互原型</title>
+<style>
+  :root{--bg:#f4efe4;--paper:#fbf8f0;--side:#efe9da;--ink:#33312b;--dim:#8c887b;--line:#e0d9c8;
+        --terra:#b0512f;--sage:#6d7d57;--ochre:#bb8a3c;--clay:#9a8266;--paper2:#f7f2e7}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang SC","Songti SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .serif{font-family:Georgia,"Songti SC","Noto Serif SC",serif}
+  .app{display:grid;grid-template-columns:226px 1fr;height:100vh}
+  /* sidebar */
+  .side{background:var(--side);border-right:1px solid var(--line);overflow:auto}
+  .logo{padding:22px 24px 16px;font-size:21px;font-weight:600;letter-spacing:.5px}
+  .grp{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);padding:16px 24px 6px}
+  .nav a{display:flex;align-items:center;gap:10px;padding:8px 24px;color:var(--ink);text-decoration:none;font-size:14px;cursor:pointer;transition:background .15s,box-shadow .15s}
+  .nav a:hover{background:#e7e0cf}
+  .nav a.on{background:#f3ead7;box-shadow:inset 3px 0 0 var(--terra);font-weight:600}
+  .badge{margin-left:auto;background:var(--terra);color:#fbf8f0;font-size:11px;padding:0 7px;border-radius:10px}
+  .badge.o{background:var(--ochre)}
+  .tagv2{margin-left:auto;color:var(--dim);font-size:10px;border:1px solid var(--line);padding:0 5px;border-radius:9px}
+  /* main */
+  .main{display:flex;flex-direction:column;min-width:0;overflow:auto}
+  .top{display:flex;align-items:baseline;gap:16px;padding:22px 40px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+  .top h1{font-size:21px;font-weight:600} .top .sub{color:var(--dim);font-size:13px}
+  .top .sp{flex:1} .top .who{color:var(--dim);font-size:13px}
+  .view{padding:26px 40px;animation:fadeUp .34s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  /* flip stat cards */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:26px}
+  .flip{perspective:1200px;height:120px;cursor:pointer}
+  .flip .inner{position:relative;width:100%;height:100%;transition:transform .6s cubic-bezier(.4,.2,.2,1);transform-style:preserve-3d}
+  .flip.is-flipped .inner{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center}
+  .face.back{transform:rotateY(180deg);background:var(--paper2)}
+  .face .l{font-size:13px;color:var(--dim);margin-bottom:6px}
+  .face .n{font-size:34px;font-weight:600;letter-spacing:-.5px;line-height:1.05}
+  .face .n.t{color:var(--terra)} .face .n.o{color:var(--ochre)}
+  .face .hint{position:absolute;top:12px;right:14px;font-size:11px;color:var(--clay);opacity:.7}
+  .brk{display:flex;justify-content:space-between;font-size:13px;padding:2px 0;color:var(--ink)}
+  .brk span:last-child{color:var(--dim)}
+  .back .bt{font-size:12px;color:var(--dim);margin-bottom:6px;letter-spacing:1px;text-transform:uppercase}
+  /* generic */
+  .grid2{display:grid;grid-template-columns:1.7fr 1fr;gap:34px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px}
+  h3.sec{font-size:13px;color:var(--dim);letter-spacing:1px;margin-bottom:12px;text-transform:uppercase}
+  /* alert list */
+  .item{display:grid;grid-template-columns:56px 1fr auto;gap:16px;align-items:start;padding:15px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s}
+  .item:hover{background:#f7f2e7}
+  .item.sel{background:#f3ead7;margin:0 -14px;padding:15px 14px;border-radius:6px;border-bottom:1px solid var(--line)}
+  .tm{color:var(--dim);font-size:13px;padding-top:2px} .ttl{font-weight:600} .src{color:var(--dim);font-size:13px;margin-top:2px}
+  .dotc{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .d-crit{background:var(--terra)} .d-hi{background:var(--ochre)} .d-mid{background:var(--sage)} .d-lo{background:var(--clay)}
+  .sev{font-size:13px;color:var(--dim)}
+  .vd{text-align:right;font-weight:600} .vd-t{color:var(--terra)} .vd-w{color:var(--ochre)} .vd-f{color:var(--dim)} .conf{text-align:right;color:var(--dim);font-size:13px}
+  /* detail */
+  #detail{transition:opacity .25s} #detail.swap{opacity:0}
+  .tag{display:inline-block;color:var(--terra);border:1px solid var(--terra);border-radius:20px;font-size:12px;padding:3px 12px;margin-bottom:14px}
+  .detail h2{font-size:21px;font-weight:600;line-height:1.3;margin-bottom:6px} .detail .meta{color:var(--dim);font-size:13px;margin-bottom:20px}
+  .vbox{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0;margin-bottom:20px}
+  .vbox .l{font-size:13px;color:var(--dim)} .vbox .big{font-size:24px;font-weight:600;letter-spacing:-.5px} .vbox .big small{font-size:14px;color:var(--ink);font-weight:400}
+  .ev{display:flex;gap:12px;padding:11px 0;border-bottom:1px dotted var(--line)} .ev .n{color:var(--terra);font-weight:600} .ev .src2{color:var(--dim);font-size:12px;margin-top:2px}
+  .act{display:flex;gap:10px;margin-top:20px}
+  .btn{padding:10px 18px;border:1px solid var(--clay);background:transparent;color:var(--ink);font:inherit;font-size:14px;border-radius:6px;cursor:pointer;transition:transform .1s,background .15s}
+  .btn:active{transform:translateY(1px)}
+  .btn.go{background:var(--terra);border-color:var(--terra);color:#fbf8f0;font-weight:500}
+  .btn.go:hover{background:#9a4527}
+  /* misc widgets */
+  .bar{height:8px;background:var(--paper2);border-radius:5px;overflow:hidden;margin-top:6px}
+  .bar i{display:block;height:100%;background:var(--terra);border-radius:5px}
+  .row2{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dotted var(--line);font-size:14px}
+  .pill{font-size:12px;padding:1px 9px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
+  .pill.ok{color:var(--sage);border-color:var(--sage)} .pill.warn{color:var(--ochre);border-color:var(--ochre)} .pill.t{color:var(--terra);border-color:var(--terra)}
+  table{width:100%;border-collapse:collapse} th{text-align:left;font-size:12px;color:var(--dim);font-weight:400;text-transform:uppercase;letter-spacing:1px;padding:0 12px 10px 0;border-bottom:1px solid var(--line)}
+  td{padding:12px 12px 12px 0;border-bottom:1px dotted var(--line)}
+  .empty{text-align:center;padding:70px 20px;color:var(--dim)} .empty .big{font-size:40px;margin-bottom:14px;opacity:.5}
+  .chat{display:flex;flex-direction:column;gap:14px;max-width:760px}
+  .bub{padding:12px 16px;border-radius:12px;max-width:75%}
+  .bub.u{align-self:flex-end;background:#e7dcc6} .bub.a{align-self:flex-start;background:var(--paper);border:1px solid var(--line)}
+  .chatbar{display:flex;gap:10px;margin-top:18px;max-width:760px}
+  .chatbar input{flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font:inherit}
+  .cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .mod{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .mod h4{font-weight:600;margin-bottom:6px} .mod p{font-size:13px;color:var(--dim)}
+  /* toast */
+  #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--paper);padding:12px 22px;border-radius:8px;opacity:0;transition:.3s;pointer-events:none;z-index:50}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style></head><body>
+<div class="app">
+  <aside class="side">
+    <div class="logo serif">AISECOPS</div>
+    <nav class="nav" id="nav">
+      <div class="grp">概览</div>
+      <a data-r="dash" class="on">仪表盘</a>
+      <div class="grp">安全运营</div>
+      <a data-r="dedupe">告警降噪</a>
+      <a data-r="triage">告警分诊<span class="badge">38</span></a>
+      <a data-r="invest">事件调查</a>
+      <a data-r="hunt">威胁狩猎<span class="tagv2">V2</span></a>
+      <a data-r="soar">SOAR 处置</a>
+      <div class="grp">协作</div>
+      <a data-r="ticket">工单 &amp; HITL<span class="badge o">6</span></a>
+      <a data-r="dispatch">外发 · 通知分发</a>
+      <a data-r="chat">Chat 助手</a>
+      <a data-r="report">报表中心</a>
+      <div class="grp">资产 · 情报</div>
+      <a data-r="cmdb">资产 CMDB</a>
+      <a data-r="intel">威胁情报</a>
+      <div class="grp">平台</div>
+      <a data-r="agent">AI Agent</a>
+      <a data-r="mcp">MCP 工具</a>
+      <a data-r="prompt">Prompt 治理</a>
+      <a data-r="cost">模型 &amp; 成本</a>
+      <a data-r="settings">系统设置</a>
+    </nav>
+  </aside>
+  <div class="main">
+    <div class="top"><h1 class="serif" id="ptitle">仪表盘</h1><span class="sub" id="psub">Dashboard</span>
+      <span class="sp"></span><span class="who">analyst@soc · 上午 09:42</span></div>
+    <div class="view" id="view"></div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const flipCard=(l,n,cls,back)=>`<div class="flip"><div class="inner">
+  <div class="face"><span class="hint">点击翻面 ⤺</span><div class="l">${l}</div><div class="n ${cls}">${n}</div></div>
+  <div class="face back"><div class="bt">${l} · 明细</div>${back}</div></div></div>`;
+const brk=(a,b)=>`<div class="brk"><span>${a}</span><span>${b}</span></div>`;
+
+const STATS=`<div class="stats">
+  ${flipCard('今日告警','1,284','',brk('严重','41')+brk('高','217')+brk('中','638')+brk('低','388'))}
+  ${flipCard('真威胁','23','t',brk('EDR','9')+brk('SIEM','7')+brk('NDR','4')+brk('防火墙','3'))}
+  ${flipCard('待审 HITL','6','o',brk('隔离主机','3')+brk('禁用账号','2')+brk('封 IP','1'))}
+  ${flipCard('本月 Token','¥312','',brk('分诊','¥181')+brk('调查','¥96')+brk('报告','¥35')+'<div class="bar"><i style="width:62%"></i></div>')}
+</div>`;
+
+const ALERTS={
+ a1:{sev:'严重',sc:'d-crit',ttl:'检测到横向移动 (PsExec)',src:'EDR · CrowdStrike Falcon',vd:'真威胁',vc:'vd-t',cf:'0.94',
+   meta:'ALERT-2026-0609-0042 · 主机 WIN-APP-07 · 09:42:17',
+   ev:[['5 分钟内对 6 台主机发起 PsExec','EDR 进程树 #e8f2'],['凭证 svc_backup 非常规时段登录','AD 日志 #a193'],['目标含域控 DC-01','CMDB 资产 #c001']]},
+ a2:{sev:'高',sc:'d-hi',ttl:'境外 IP 多次失败后登录成功',src:'SIEM · Splunk',vd:'待研判',vc:'vd-w',cf:'0.61',
+   meta:'ALERT-2026-0609-0038 · 账号 admin@corp · 09:38:02',
+   ev:[['来自俄罗斯 IP 23 次失败后成功','SIEM 登录日志 #s771'],['该账号此前仅境内登录','UEBA 基线 #u044']]},
+ a3:{sev:'中',sc:'d-mid',ttl:'出站连接到已知 C2 域名',src:'防火墙',vd:'真威胁',vc:'vd-t',cf:'0.88',
+   meta:'ALERT-2026-0609-0031 · 主机 DEV-12 · 09:31:55',
+   ev:[['连接 evil-c2[.]top','威胁情报 #ti22'],['周期性心跳 60s','流量分析 #f88']]}
+};
+const detail=id=>{const a=ALERTS[id];return `<div class="detail">
+  <div class="tag">⚑ 需 HITL 审批</div>
+  <h2 class="serif">${a.ttl}</h2>
+  <div class="meta">${a.meta}</div>
+  <div class="vbox"><div class="l">AI 分诊结论</div><div class="big serif ${a.vc}">${a.vd} <small>· 置信度 ${a.cf}</small></div></div>
+  <h3 class="sec">证据链（含引用）</h3>
+  ${a.ev.map((e,i)=>`<div class="ev"><span class="n">0${i+1}</span><div>${e[0]}<div class="src2">来源：${e[1]}</div></div></div>`).join('')}
+  <div class="act"><button class="btn go" onclick="toast('已提交 HITL 审批队列')">批准隔离</button>
+    <button class="btn" onclick="toast('已驳回该研判')">驳回</button>
+    <button class="btn" onclick="toast('已转人工调查')">转人工</button></div></div>`;};
+const alertRow=(id,sel)=>{const a=ALERTS[id];return `<div class="item ${sel?'sel':''}" data-a="${id}">
+  <div class="tm">${a.meta.split('· ').pop().slice(0,5)}</div>
+  <div><span class="sev"><span class="dotc ${a.sc}"></span>${a.sev}</span><div class="ttl">${a.ttl}</div><div class="src">${a.src}</div></div>
+  <div><div class="vd ${a.vc}">${a.vd}</div><div class="conf">${a.cf}</div></div></div>`;};
+
+const ROUTES={
+ dash:{t:'仪表盘',s:'Dashboard',html:()=>STATS+`<div class="grid2">
+   <div class="card"><h3 class="sec">最新真威胁</h3>${alertRow('a1')}${alertRow('a3')}</div>
+   <div class="card"><h3 class="sec">来源 Top</h3>
+     <div class="row2"><span>EDR · Falcon</span><b>412</b></div>
+     <div class="row2"><span>SIEM · Splunk</span><b>388</b></div>
+     <div class="row2"><span>防火墙</span><b>266</b></div>
+     <div class="row2"><span>NDR</span><b>118</b></div>
+     <h3 class="sec" style="margin-top:18px">本月预算</h3>
+     <div class="row2"><span>¥312 / ¥500</span><span class="pill warn">62%</span></div>
+     <div class="bar"><i style="width:62%"></i></div></div></div>`},
+ dedupe:{t:'告警降噪',s:'Noise Reduction',html:()=>`<div class="stats">
+   ${flipCard('原始告警','5,841','',brk('Syslog','2,610')+brk('SIEM','1,902')+brk('EDR','812')+brk('其他','517'))}
+   ${flipCard('降噪后','1,284','t',brk('精确去重','-2,108')+brk('时间窗归并','-1,602')+brk('抑制规则','-612')+brk('关联聚合','-235'))}
+   ${flipCard('降噪率','78%','o',brk('目标','≥70%')+'<div class="bar"><i style="width:78%"></i></div>')}
+   ${flipCard('抑制规则','23','',brk('启用','19')+brk('停用','4'))}
+ </div><div class="grid2">
+   <div class="card"><h3 class="sec">降噪手段拆分 · 分诊前执行</h3>
+     <div class="row2"><span>精确去重（指纹一致）</span><b>2,108</b></div><div class="bar"><i style="width:90%"></i></div>
+     <div class="row2" style="margin-top:10px"><span>时间窗归并（同源同类聚合）</span><b>1,602</b></div><div class="bar"><i style="width:68%"></i></div>
+     <div class="row2" style="margin-top:10px"><span>抑制规则（已知噪声）</span><b>612</b></div><div class="bar"><i style="width:26%"></i></div>
+     <div class="row2" style="margin-top:10px"><span>关联聚合（L08 同一事件）</span><b>235</b></div><div class="bar"><i style="width:10%"></i></div></div>
+   <div class="card"><h3 class="sec">抑制规则</h3><table><thead><tr><th>规则</th><th>命中</th><th>状态</th></tr></thead><tbody>
+     <tr><td>健康检查心跳</td><td>381</td><td><span class="pill ok">启用</span></td></tr>
+     <tr><td>已知扫描器 IP</td><td>146</td><td><span class="pill ok">启用</span></td></tr>
+     <tr><td>测试环境 DEV-*</td><td>85</td><td><span class="pill ok">启用</span></td></tr>
+     <tr><td>备份任务 sudo</td><td>—</td><td><span class="pill">停用</span></td></tr>
+   </tbody></table><button class="btn" style="margin-top:14px" onclick="toast('新建抑制规则（demo）')">+ 新建规则</button></div></div>`},
+ triage:{t:'告警分诊',s:'Alert Triage',html:()=>STATS+`<div class="grid2">
+   <div class="card"><h3 class="sec">实时告警流 · 点击查看研判</h3><div id="alist">
+     ${alertRow('a1',1)}${alertRow('a2')}${alertRow('a3')}</div></div>
+   <div class="card" id="detail">${detail('a1')}</div></div>`},
+ invest:{t:'事件调查',s:'Investigation',html:()=>`<div class="grid2"><div class="card">
+   <h3 class="sec">攻击时间线 · INC-2026-0042</h3>
+   <div class="ev"><span class="n">09:31</span><div>DEV-12 连接 C2 域名<div class="src2">防火墙</div></div></div>
+   <div class="ev"><span class="n">09:38</span><div>admin 账号异常登录成功<div class="src2">SIEM</div></div></div>
+   <div class="ev"><span class="n">09:42</span><div>WIN-APP-07 横向移动至 6 台主机<div class="src2">EDR</div></div></div>
+   <div class="ev"><span class="n">09:44</span><div>尝试访问域控 DC-01<div class="src2">EDR</div></div></div></div>
+   <div class="card"><h3 class="sec">向 AI 提问取证</h3>
+     <div class="chat"><div class="bub u">这次入侵的攻击链是什么？</div>
+       <div class="bub a">初判为 <b>凭证窃取 → 横向移动</b>：C2 回连(09:31) → 异常登录(09:38) → PsExec 横移(09:42)，目标域控。涉及 6 台主机，建议优先隔离 WIN-APP-07。<div class="src2" style="margin-top:6px">引用 3 条证据 · 置信度 0.86</div></div></div>
+     <div class="chatbar"><input placeholder="继续追问…"><button class="btn go" onclick="toast('已发送（demo）')">发送</button></div></div></div>`},
+ hunt:{t:'威胁狩猎',s:'Threat Hunting',html:()=>`<div class="empty"><div class="big serif">⌖</div>
+   <div style="font-size:18px;color:var(--ink);margin-bottom:8px">威胁狩猎 · V2 规划中</div>
+   <div>主动狩猎潜伏威胁。自用 V1.0 暂不实现，按数据量在 V2 评估上线。</div></div>`},
+ soar:{t:'SOAR 处置',s:'Playbooks',html:()=>`<h3 class="sec">处置剧本 · 高风险默认 HITL</h3><div class="cards3">
+   <div class="mod"><h4>封禁 IP <span class="pill t">高风险</span></h4><p>触发：C2 外连确认 → 防火墙封禁。<br>必经双模型 + HITL。</p><button class="btn" style="margin-top:12px" onclick="toast('剧本已启用')">启用</button></div>
+   <div class="mod"><h4>隔离主机 <span class="pill t">高风险</span></h4><p>触发：横移迹象 → EDR 隔离。<br>必经 HITL 审批。</p><button class="btn" style="margin-top:12px" onclick="toast('剧本已启用')">启用</button></div>
+   <div class="mod"><h4>禁用账号 <span class="pill warn">中风险</span></h4><p>触发：凭证滥用 → AD 禁用。</p><button class="btn" style="margin-top:12px" onclick="toast('剧本已启用')">启用</button></div></div>`},
+ ticket:{t:'工单 & HITL',s:'Tickets & HITL',html:()=>`<h3 class="sec">HITL 审批队列 · 6 待处理</h3><div class="card">
+   <table><thead><tr><th>工单</th><th>动作</th><th>对象</th><th>风险</th><th style="text-align:right">操作</th></tr></thead><tbody>
+   <tr><td>TKT-204</td><td>隔离主机</td><td>WIN-APP-07</td><td><span class="pill t">高</span></td><td style="text-align:right"><button class="btn go" onclick="toast('TKT-204 已批准')">批准</button> <button class="btn" onclick="toast('已驳回')">驳回</button></td></tr>
+   <tr><td>TKT-203</td><td>禁用账号</td><td>svc_backup</td><td><span class="pill t">高</span></td><td style="text-align:right"><button class="btn go" onclick="toast('TKT-203 已批准')">批准</button> <button class="btn" onclick="toast('已驳回')">驳回</button></td></tr>
+   <tr><td>TKT-201</td><td>封禁 IP</td><td>185.x.x.x</td><td><span class="pill warn">中</span></td><td style="text-align:right"><button class="btn go" onclick="toast('TKT-201 已批准')">批准</button> <button class="btn" onclick="toast('已驳回')">驳回</button></td></tr>
+   </tbody></table></div>`},
+ dispatch:{t:'外发 · 通知分发',s:'Outbound & Dispatch',html:()=>`<div class="grid2">
+   <div class="card"><h3 class="sec">外发渠道</h3>
+     <div class="row2"><span>企业微信 · @值班群</span><span class="pill ok">已连</span></div>
+     <div class="row2"><span>钉钉</span><span class="pill ok">已连</span></div>
+     <div class="row2"><span>邮件 · soc@corp</span><span class="pill ok">已连</span></div>
+     <div class="row2"><span>Webhook（通用）</span><span class="pill ok">已连</span></div>
+     <div class="row2"><span>回写工单系统</span><span class="pill ok">已连</span></div>
+     <div class="row2"><span>回写 SIEM / 防火墙</span><span class="pill warn">按需</span></div></div>
+   <div class="card"><h3 class="sec">外发规则 · 命中即分发</h3>
+     <div class="ev"><span class="n">01</span><div>真威胁 + 严重 → 企微@值班 + 自动开工单<div class="src2">渠道：企微 · 工单</div></div></div>
+     <div class="ev"><span class="n">02</span><div>真威胁 + C2 外连 → 回写防火墙封禁工单<div class="src2">渠道：回写 SIEM</div></div></div>
+     <div class="ev"><span class="n">03</span><div>待研判 → 仅入 HITL 队列，不外发打扰<div class="src2">渠道：无</div></div></div>
+     <div class="ev"><span class="n">04</span><div>误报 → 静默归档<div class="src2">渠道：无</div></div></div>
+     <button class="btn" style="margin-top:14px" onclick="toast('新建外发规则（demo）')">+ 新建规则</button></div></div>
+   <div class="card" style="margin-top:18px"><h3 class="sec">最近外发</h3>
+     <div class="row2"><span>09:42 · 横向移动(PsExec) → 企微@值班 + TKT-204</span><span class="pill ok">成功</span></div>
+     <div class="row2"><span>09:31 · C2 外连 → 防火墙封禁工单</span><span class="pill ok">成功</span></div>
+     <div class="row2"><span>09:18 · 钓鱼邮件研判 → 邮件通知</span><span class="pill ok">成功</span></div></div>`},
+ chat:{t:'Chat 助手',s:'Assistant',html:()=>`<div class="chat"><div class="bub a">你好，我是安全运营助手。可以问我告警、资产、情报相关问题。</div>
+   <div class="bub u">今天有几个真威胁待处置？</div>
+   <div class="bub a">当前有 <b>3 个</b>真威胁待处置：WIN-APP-07 横移(0.94)、DEV-12 C2 外连(0.88)，以及一条等你研判。要我打开分诊页吗？<div class="src2" style="margin-top:6px">数据来源：告警库 09:45 快照</div></div></div>
+   <div class="chatbar"><input placeholder="输入问题…"><button class="btn go" onclick="toast('已发送（demo）')">发送</button></div>`},
+ report:{t:'报表中心',s:'Reports',html:()=>`<h3 class="sec">报告模板 · 一键生成</h3><div class="cards3">
+   <div class="mod"><h4>安全日报</h4><p>昨日告警/真威胁/处置概览，管理层简版。</p><button class="btn" style="margin-top:12px" onclick="toast('已生成日报（demo）')">生成</button></div>
+   <div class="mod"><h4>安全周报</h4><p>趋势 + Top 风险 + 处置统计。</p><button class="btn" style="margin-top:12px" onclick="toast('已生成周报（demo）')">生成</button></div>
+   <div class="mod"><h4>事件复盘</h4><p>单事件时间线 + 根因 + 改进项。</p><button class="btn" style="margin-top:12px" onclick="toast('已生成复盘（demo）')">生成</button></div></div>`},
+ cmdb:{t:'资产 CMDB',s:'Assets',html:()=>`<h3 class="sec">资产清单</h3><div class="card"><table>
+   <thead><tr><th>主机</th><th>IP</th><th>角色</th><th>重要度</th><th>状态</th></tr></thead><tbody>
+   <tr><td>DC-01</td><td>10.0.0.10</td><td>域控</td><td><span class="pill t">关键</span></td><td><span class="pill ok">正常</span></td></tr>
+   <tr><td>WIN-APP-07</td><td>10.0.2.7</td><td>应用服务器</td><td><span class="pill warn">高</span></td><td><span class="pill t">已隔离</span></td></tr>
+   <tr><td>DEV-12</td><td>10.0.3.12</td><td>开发机</td><td><span class="pill">中</span></td><td><span class="pill warn">观察</span></td></tr>
+   </tbody></table></div>`},
+ intel:{t:'威胁情报',s:'Threat Intel',html:()=>`<h3 class="sec">最新 IoC</h3><div class="card">
+   <div class="row2"><span>evil-c2[.]top <span class="pill t">域名</span></span><span class="src">命中 1 主机 · 09:31</span></div>
+   <div class="row2"><span>185.220.x.x <span class="pill t">IP</span></span><span class="src">Tor 出口 · 高危</span></div>
+   <div class="row2"><span>a1b2…f9 <span class="pill warn">哈希</span></span><span class="src">PsExec 变体</span></div></div>`},
+ agent:{t:'AI Agent',s:'Agents',html:()=>`<h3 class="sec">Agent 编排 · Orchestrator 调度</h3><div class="cards3">
+   <div class="mod"><h4>Orchestrator <span class="pill ok">运行</span></h4><p>统一调度，禁省略。</p></div>
+   <div class="mod"><h4>Triage <span class="pill ok">运行</span></h4><p>告警分诊，含 abstain。</p></div>
+   <div class="mod"><h4>Investigation <span class="pill ok">运行</span></h4><p>事件取证 + 时间线。</p></div>
+   <div class="mod"><h4>Responder <span class="pill warn">待命</span></h4><p>处置执行，经 HITL。</p></div>
+   <div class="mod"><h4>Reporter <span class="pill ok">运行</span></h4><p>报告生成。</p></div>
+   <div class="mod"><h4>Tuning <span class="pill">周扫</span></h4><p>反馈调优（不训 DSLM）。</p></div></div>`},
+ mcp:{t:'MCP 工具',s:'Tool Adapters',html:()=>`<h3 class="sec">工具适配 · 默认薄适配器（ADR-0004）</h3><div class="card"><table>
+   <thead><tr><th>名称</th><th>分类</th><th>形态</th><th>状态</th></tr></thead><tbody>
+   <tr><td>Syslog</td><td>data_sources</td><td><span class="pill">薄适配器</span></td><td><span class="pill ok">已接入</span></td></tr>
+   <tr><td>Splunk</td><td>security_tools</td><td><span class="pill">薄适配器</span></td><td><span class="pill ok">已接入</span></td></tr>
+   <tr><td>CrowdStrike</td><td>security_tools</td><td><span class="pill warn">完整 MCP</span></td><td><span class="pill ok">已接入</span></td></tr>
+   <tr><td>企业微信通知</td><td>custom</td><td><span class="pill">薄适配器</span></td><td><span class="pill ok">已接入</span></td></tr>
+   </tbody></table></div>`},
+ prompt:{t:'Prompt 治理',s:'Prompts',html:()=>`<h3 class="sec">Prompt 版本 · git 管理</h3><div class="card">
+   <div class="row2"><span>triage/system.md</span><span class="src">v7 · 3 天前</span></div>
+   <div class="row2"><span>investigation/system.md</span><span class="src">v4 · 1 周前</span></div>
+   <div class="row2"><span>reporter/daily.md</span><span class="src">v2 · 2 周前</span></div></div>`},
+ cost:{t:'模型 & 成本',s:'Models & Cost',html:()=>`<div class="stats">
+   ${flipCard('本月成本','¥312','t',brk('豆包','¥181')+brk('通义','¥96')+brk('本地 Qwen','¥0')+brk('Claude(出域)','¥35'))}
+   ${flipCard('调用次数','8,412','',brk('分诊','5,108')+brk('调查','2,217')+brk('报告','1,087'))}
+   ${flipCard('预算余量','¥188','o',brk('上限','¥500')+brk('已用','¥312')+'<div class="bar"><i style="width:62%"></i></div>')}
+   ${flipCard('降级触发','2 次','',brk('超时降级','1')+brk('预算降级','1'))}
+ </div><div class="card"><h3 class="sec">Provider 路由</h3>
+   <div class="row2"><span>豆包（默认 SaaS）</span><span class="pill ok">健康</span></div>
+   <div class="row2"><span>本地 Qwen / Ollama</span><span class="pill ok">健康</span></div>
+   <div class="row2"><span>Claude（出域开关·默认关）</span><span class="pill warn">按需</span></div></div>`},
+ settings:{t:'系统设置',s:'Settings',html:()=>`<h3 class="sec">内部角色 · 3 角色 RBAC</h3><div class="card">
+   <div class="row2"><span><b>管理员</b> — 你 + 核心同事</span><span class="src">配置 + HITL 审批 + 全部</span></div>
+   <div class="row2"><span><b>分析师</b> — 安全同事</span><span class="src">告警/调查/标注/Chat</span></div>
+   <div class="row2"><span><b>普通查看</b> — 其他同事</span><span class="src">仪表盘 + 关注告警</span></div>
+   <h3 class="sec" style="margin-top:18px">通用</h3>
+   <div class="row2"><span>出域开关（LLM 默认本地）</span><span class="pill warn">关</span></div>
+   <div class="row2"><span>月度 Token 预算</span><span>¥500</span></div></div>`}
+};
+
+const view=document.getElementById('view'),ptitle=document.getElementById('ptitle'),psub=document.getElementById('psub');
+function go(r){const R=ROUTES[r];if(!R)return;
+  ptitle.textContent=R.t;psub.textContent=R.s;
+  view.style.animation='none';void view.offsetWidth;view.style.animation='';
+  view.innerHTML=R.html();
+  document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===r));
+  bindView();}
+function bindView(){
+  view.querySelectorAll('.flip').forEach(f=>f.onclick=()=>f.classList.toggle('is-flipped'));
+  const al=view.querySelector('#alist');
+  if(al)al.querySelectorAll('.item').forEach(it=>it.onclick=()=>{
+    al.querySelectorAll('.item').forEach(x=>x.classList.remove('sel'));it.classList.add('sel');
+    const d=document.getElementById('detail');d.classList.add('swap');
+    setTimeout(()=>{d.innerHTML=detail(it.dataset.a);d.classList.remove('swap');},220);});
+}
+document.getElementById('nav').addEventListener('click',e=>{const a=e.target.closest('a[data-r]');if(a){e.preventDefault();go(a.dataset.r);}});
+let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1900);}
+// 初始路由：支持 #route 与 ?flip=1（仅供截图演示用，正常使用点菜单即可）
+const initR=(location.hash.slice(1)||'dash');
+go(ROUTES[initR]?initR:'dash');
+if(location.search.includes('flip'))setTimeout(()=>view.querySelectorAll('.flip').forEach(f=>f.classList.add('is-flipped')),60);
+</script></body></html>
