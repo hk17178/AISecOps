@@ -92,12 +92,13 @@ DSLM / Embedding 模型权重文件（.bin / .safetensors / .gguf / .pt / .onnx�
 
 ❌ **反例**：itops-agent-platform 单 SQLite 39 张表跑全平台 → 反例典型
 
-### C-13. 跨层调用禁止
-- 不许跨层 import（如 L07 直接 import L10）
-- 不许反向调用（如 L09 调 L07）
-- 例外只能是 L05 Gateway / L06 MCP / L12 横切支撑
+### C-13. 跨层调用按"显式依赖 DAG"（不是"相邻层 only"）
+跨层规则改用显式允许边，详见 [ADR-0008](docs/adr/0008-cross-layer-dependency-dag.md)。三类：
+- **横切例外**：任何层可依赖 L05 Gateway / L06 工具适配 / L12 横切支撑
+- **编排层例外**：L02 可调 L03·L04·L08；L07 可调 L02·L08（L02/L07 是编排层）
+- **数据面禁令**：L09/L10/L11 不得向上调用业务/Agent 层（反馈飞轮走事件驱动除外）；禁止绕过 L05 调 LLM、绕过 L06 调外部工具
 
-新建跨层例外必须写 ADR。
+不在上述枚举边内的新跨层边，必须写 ADR。
 
 ## 🔴 五、工程纪律
 

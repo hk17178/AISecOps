@@ -50,7 +50,7 @@
 
 - **S1.1** 决策落地：写 ADR-0005 ~ ADR-0007（主语言 / Agent 编排 / 数据中间件；ADR-0004 已被 L06 形态占用）+ 5 条 PRD §9 待决策事项
 - **S1.2** Python 环境：pyproject.toml + uv + ruff + mypy
-- **S1.3** Docker：Dockerfile + docker-compose.yml（PG + ClickHouse + Redis + MinIO + Vault）
+- **S1.3** Docker：Dockerfile + docker-compose.yml（**PoC 仅 PG[含 pgvector] + Redis**；ClickHouse/MinIO/Milvus/Vault 撑不住再加，见 O2/O4）。凭证起步用 `.env`（gitignore），不上 Vault
 - **S1.4** CI：GitHub Actions（lint + type + test 三步）
 - **S1.5** OpenTelemetry 可观测最小集成（trace + log + metric）
 - **S1.6** 写 `docs/restart-guide.md` 第一版（未来重启自己用）

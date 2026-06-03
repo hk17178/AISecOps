@@ -46,9 +46,10 @@
 │                       │              │       │
 │                       └─ L06 MCP ────┘       │
 │                                              │
-│  数据层（同节点 docker-compose）              │
-│   Postgres / ClickHouse / Kafka / Redis     │
-│   MinIO / Milvus / Vault / Prometheus       │
+│  数据层（PoC 仅 2 个有状态服务，见 §3.4）     │
+│   Postgres(含 pgvector) / Redis              │
+│   + Prometheus(可观测)                        │
+│   ┄ ClickHouse/MinIO/Milvus/Vault: 撑不住再加 ┄│
 │                                              │
 │  外部依赖                                     │
 │   - 客户内网 LLM 或 SaaS LLM API（自选）      │
@@ -97,18 +98,22 @@
 | Server 框架 | 自研脚手架（`/add-mcp`） |
 | **V1.0 实现 3 个起步** | Syslog（采集）+ 你们 SIEM/EDR 二选一（数据源）+ 通知（企微/钉钉/邮件 一种） |
 
-### 3.4 数据层（自用规模 → 中间件起步配置）
+### 3.4 数据层（PoC 只起 2 个有状态服务，见 O2 决策）
 
-| 组件 | 选型 | 起步部署 |
+> **PoC 起步只上 PG + Redis 两个有状态服务**，其余能用 PG 替代的先替代，撑不住再加。
+> 理由：自用 10-100 人、单人可维护，起步就上 6 个中间件违背"零运维 / 够用就行"。
+
+| 组件 | PoC 起步 | 撑不住时升级 |
 |---|---|---|
-| 关系数据库 | **PostgreSQL 16** | docker 单实例 |
-| 时序 / 日志 | **ClickHouse 24.x LTS** | docker 单实例 |
-| 消息中间件 | **Redis Streams**（起步）→ Kafka（如吞吐撑不住） | Redis 单实例 |
-| 对象存储 | **MinIO** | docker 单实例 |
-| 全文检索 | **暂不上**（PG 全文索引够用） | - |
-| 流处理 | **暂不上**（数据量不大，Python 批处理就够） | - |
+| 关系数据库 | **PostgreSQL 16**（docker 单实例） | — |
+| 向量库 | **pgvector**（PG 扩展，免单独部署） | Milvus（数据量大/检索慢时） |
+| 时序 / 日志 | **先用 PG**（JSONB + 分区表够 PoC） | ClickHouse（EPS 撑不住时） |
+| 消息中间件 | **Redis Streams** | Kafka（吞吐 > 1K EPS 时） |
+| 对象存储 | **本地文件系统**（报告/归档） | MinIO（多节点时） |
+| 全文检索 | PG 全文索引 | — |
+| 流处理 | Python 批处理 | — |
 
-> 自用规模，**Kafka / OpenSearch / Flink 起步全不上**，等数据量真撑不住再加。
+> **PoC 起步全不上**：ClickHouse / Milvus / MinIO / Kafka / OpenSearch / Flink，等真撑不住再按上表升级。
 
 ### 3.5 L05 LLM Gateway 设计
 
@@ -176,7 +181,7 @@ class Agent(ABC):
 | 容器 | Docker | 24.0+ |
 | 编排 | **docker-compose**（起步）/ K8s（如需） | v2.20+ / 1.28+ |
 | 配置 | Pydantic Settings + .env | - |
-| 凭证 | Vault | 1.16+ |
+| 凭证 | **起步 `.env`（gitignore）+ pydantic-settings**；Vault 团队上线后再上（见 O4） | Vault 1.16+ |
 | 可观测 | OpenTelemetry + Loki + Prometheus + Grafana | OTel 0.105+ |
 | CI / CD | GitHub Actions | - |
 
