@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from typing import Any
+from typing import Any, get_origin
 
 from pydantic import BaseModel, ValidationError
 
@@ -45,6 +45,30 @@ def _extract_json(content: str) -> Any:
 
 def _normalize(text: str) -> str:
     return " ".join(text.split()).strip().lower()
+
+
+def _placeholder(annotation: Any) -> Any:
+    """按类型给一个零值占位（stub 离线填充用）。"""
+    origin = get_origin(annotation)
+    if annotation is str:
+        return ""
+    if annotation is int:
+        return 0
+    if annotation is float:
+        return 0.0
+    if annotation is bool:
+        return False
+    if origin in (list, set, tuple):
+        return []
+    if origin is dict:
+        return {}
+    return None
+
+
+def _stub_fill(model: type[BaseModel]) -> BaseModel:
+    """构造一个 schema 合法的占位实例（必填字段填零值）。"""
+    values = {name: _placeholder(field.annotation) for name, field in model.model_fields.items() if field.is_required()}
+    return model.model_validate(values)
 
 
 class LLMGateway:
@@ -148,10 +172,14 @@ class LLMGateway:
         parsed: Any = None
         if response_model is not None:
             try:
-                data = _extract_json(content)
-                parsed = response_model.model_validate(data)
+                parsed = response_model.model_validate(_extract_json(content))
             except (json.JSONDecodeError, ValidationError) as exc:
-                raise SchemaValidationError(f"{scenario} 输出不符合 {response_model.__name__}：{exc}") from exc
+                if provider.name == "stub":
+                    # 离线 stub 产不出真实结构化研判 → 给 schema 合法占位
+                    # （必填字段填零值，confidence=0 自然让上层 abstain → 待研判）
+                    parsed = _stub_fill(response_model)
+                else:
+                    raise SchemaValidationError(f"{scenario} 输出不符合 {response_model.__name__}：{exc}") from exc
 
         metadata = CallMetadata(
             scenario=scenario,

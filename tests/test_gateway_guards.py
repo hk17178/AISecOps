@@ -27,6 +27,12 @@ class OutboundCapture(StubProvider):
         return await super().complete(request)
 
 
+class BadProvider(StubProvider):
+    """非 stub 的 provider（name != 'stub'），用于测真 provider 的 schema 严格校验。"""
+
+    name = "bad"
+
+
 class Verdict(BaseModel):
     verdict: str
     confidence: float
@@ -68,11 +74,19 @@ async def test_schema_validation_ok() -> None:
     assert resp.parsed.confidence == 0.94
 
 
-async def test_schema_validation_fail_raises() -> None:
-    stub = StubProvider(canned="这不是 JSON")
-    gw = LLMGateway([stub])
+async def test_schema_validation_fail_raises_for_real_provider() -> None:
+    # 真 provider(非 stub) 输出非 JSON → 严格 raise（C-21）
+    gw = LLMGateway([BadProvider(canned="这不是 JSON")])
     with pytest.raises(SchemaValidationError):
         await gw.call("x", scenario="t", response_model=Verdict)
+
+
+async def test_stub_fills_placeholder_offline() -> None:
+    # 离线 stub(回显非 JSON) + response_model → 填零值占位，不报错
+    gw = LLMGateway([StubProvider()])
+    resp = await gw.call("x", scenario="t", response_model=Verdict)
+    assert resp.parsed is not None
+    assert resp.parsed.confidence == 0.0
 
 
 # ---- S9 双模型 cross-check（C-27）----
