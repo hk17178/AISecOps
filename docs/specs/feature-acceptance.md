@@ -139,8 +139,8 @@
 
 ### 4.5 系统设置（L02 平台核心）
 - **真实逻辑**：配置**持久化到 DB + 密钥加密**（P-18，替换内存暂存）；**RBAC 用户管理（CRUD）**替换占位登录。
-- **验收**：☐ 配置存得住 ☐ 用户可增删改 + 角色生效。
-- **状态**：🟡 读+暂存内存；持久化/RBAC 未做。
+- **验收**：☑ 配置存得住（`ConfigStore` PG `app_config`，DB 覆盖 .env，重启生效；预算/出域热更，见 `test_rbac_config.py`）☑ 用户可增删改 + 角色生效（`UserStore` PG `users`，真登录校验，停用即拒登）。
+- **状态**：🟢 **已做**：L12 `secrets`（Fernet 加密敏感键 + scrypt 口令哈希，**实测 PG 落库为密文/哈希非明文**）；L12 `ConfigStore` 配置持久化（敏感键加密）；L02 `UserStore` 三角色 IAM + 真 `/api/login`；`/api/users` CRUD + `/api/config` 存 DB；`系统设置`页接真（配置编辑 + 用户管理）；全写审计(C-23)。🟡 待补：会话令牌鉴权（当前前端持登录态，端点未强制 token）、master key 生产下发流程。
 
 ---
 

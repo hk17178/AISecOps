@@ -55,6 +55,14 @@ from .tickets import (
     seed_demo_tickets,
 )
 from .triage import TriageAgent, TriageVerdict
+from .users import (
+    InMemoryUserStore,
+    PgUserStore,
+    User,
+    UserStore,
+    build_user_store,
+    seed_demo_users,
+)
 
 __all__ = [
     "Agent",
@@ -109,4 +117,10 @@ __all__ = [
     "build_ticket_store",
     "TicketError",
     "seed_demo_tickets",
+    "User",
+    "UserStore",
+    "InMemoryUserStore",
+    "PgUserStore",
+    "build_user_store",
+    "seed_demo_users",
 ]

@@ -25,12 +25,14 @@ from aisecops.L02_agents import (
     build_record_store,
     build_run_store,
     build_ticket_store,
+    build_user_store,
     mask_url,
     match_dispatch_rules,
-    seed_demo_channels_rules,
     seed_agent_configs,
+    seed_demo_channels_rules,
     seed_demo_playbooks,
     seed_demo_tickets,
+    seed_demo_users,
 )
 from aisecops.L04_ai_assets_models import build_prompt_store, seed_demo_prompts
 from aisecops.L05_gateway.llm_gateway import (
@@ -75,7 +77,8 @@ from aisecops.L09_data_platform.event_store import build_event_store
 from aisecops.L09_data_platform.report_store import build_report_store
 from aisecops.L10_data_collection.ingest import normalize_alert
 from aisecops.L11_target_estate import build_asset_store, seed_demo_assets
-from aisecops.L12_core_support.config import get_settings
+from aisecops.L12_core_support.config import Settings, get_settings
+from aisecops.L12_core_support.config_store import EDITABLE_KEYS, build_config_store, coerce
 
 app = FastAPI(title="AISECOPS · L05 测试台", version="0.1.0")
 
@@ -84,11 +87,35 @@ _STATIC = Path(__file__).parent / "static"
 # 持久化：有 DATABASE_URL 用 PG（重启不丢），否则内存。空库才放演示种子。
 _db_url = get_settings().database_url
 
+
+def _apply_overrides(base: Settings, overrides: dict[str, str]) -> Settings:
+    """把 DB 持久化的配置覆盖到 .env 基线上（按字段类型规整）。"""
+    upd: dict[str, Any] = {}
+    for k, v in overrides.items():
+        if not hasattr(base, k):
+            continue
+        cur = getattr(base, k)
+        if isinstance(cur, bool):
+            upd[k] = str(v).lower() in ("1", "true", "yes", "on")
+        elif isinstance(cur, float):
+            try:
+                upd[k] = float(v)
+            except ValueError:
+                pass
+        else:
+            upd[k] = v
+    return base.model_copy(update=upd)
+
+
+# 系统配置持久化（P-18）：DB 覆盖 .env；敏感键加密。先算出"有效配置"再建网关等。
+_config_store = build_config_store(_db_url)
+_settings = _apply_overrides(get_settings(), _config_store.all_decrypted())
+
 # 场景→模型路由（§4.4）：从 RouteStore 加载（持久化），注入网关。
 _route_store = build_route_store(_db_url)
 seed_default_routes(_route_store)
-# 共享一个网关 + 工具注册表 + 上下文：分诊与成本统计读同一份数据
-_gateway = build_gateway()
+# 共享一个网关 + 工具注册表 + 上下文：分诊与成本统计读同一份数据（用有效配置=DB 覆盖 .env）
+_gateway = build_gateway(_settings)
 _default_provider = next((p.name for p in _gateway.providers if not p.is_stub), _gateway.providers[-1].name)
 _gateway.router = ScenarioRouter(_route_store.all(), default=_default_provider)
 _registry = build_tool_registry()
@@ -124,7 +151,6 @@ seed_demo_playbooks(_playbooks)
 _runs = build_run_store(_db_url)
 
 # 通知中枢（L02 平台核心）：渠道 + 外发规则 + 发送记录；发送经 L06 适配器（受出域开关约束）
-_settings = get_settings()
 _channels = build_channel_store(_db_url)
 _dispatch_rules = build_dispatch_rule_store(_db_url)
 _records = build_record_store(_db_url)
@@ -153,6 +179,10 @@ seed_demo_prompts(_prompts)
 _adapters = build_adapter_store(_db_url)
 if not _adapters.all():
     seed_demo_adapters(_adapters, _settings.es_hosts)
+
+# 用户与 RBAC（L02 IAM）：替换占位登录；口令 scrypt 哈希
+_users = build_user_store(_db_url)
+seed_demo_users(_users)
 
 
 def get_gateway() -> LLMGateway:
@@ -262,20 +292,68 @@ class LoginIn(BaseModel):
     password: str
 
 
-# 占位认证（真 RBAC 在 L02 平台核心做）。默认口令 aisecops。
-_ROLES = {"admin": "管理员", "analyst": "分析师"}
-
-
 @app.post("/api/login")
 async def login(body: LoginIn) -> dict[str, str]:
-    if not body.username or body.password != "aisecops":
-        raise HTTPException(status_code=401, detail="用户名或密码错误")
-    role = _ROLES.get(body.username, "普通查看")
-    return {"username": body.username, "role": role}
+    """真用户校验（口令 scrypt 哈希；停用用户拒登）。"""
+    user = _users.verify(body.username, body.password)
+    if user is None:
+        raise HTTPException(status_code=401, detail="用户名或密码错误，或账号已停用")
+    return {"username": user.username, "role": user.role}
 
 
-# 配置覆盖（仅内存暂存；持久化到 DB + 密钥加密是 P-18 待做）
-_config_overrides: dict[str, Any] = {}
+@app.get("/api/users")
+async def get_users() -> dict[str, Any]:
+    return {"users": [u.model_dump() for u in _users.all()], "roles": ["管理员", "分析师", "普通查看"]}
+
+
+class UserIn(BaseModel):
+    username: str
+    password: str = ""
+    role: str = "普通查看"
+    actor: str = "未知"
+
+
+@app.post("/api/users")
+async def create_user(body: UserIn) -> dict[str, Any]:
+    if not body.username.strip() or not body.password:
+        raise HTTPException(status_code=400, detail="用户名与初始口令不能为空")
+    u = _users.create(body.username.strip(), body.password, body.role)
+    _ctx.audit.append(actor=body.actor, action="user_create", target=u.username, details={"role": u.role})
+    return u.model_dump()
+
+
+class UserUpdateIn(BaseModel):
+    role: str | None = None
+    enabled: bool | None = None
+    password: str | None = None
+    actor: str = "未知"
+
+
+@app.put("/api/users/{username}")
+async def update_user(username: str, body: UserUpdateIn) -> dict[str, Any]:
+    fields = body.model_dump(exclude_none=True)
+    actor = str(fields.pop("actor", "未知"))
+    u = _users.update(username, fields)
+    if u is None:
+        raise HTTPException(status_code=404, detail=f"用户 {username} 不存在")
+    # 审计不记录口令本身（只记是否重置）
+    _ctx.audit.append(
+        actor=actor,
+        action="user_update",
+        target=username,
+        details={"role": u.role, "enabled": u.enabled, "password_reset": "password" in fields},
+    )
+    return u.model_dump()
+
+
+@app.delete("/api/users/{username}")
+async def delete_user(username: str, actor: str = "未知") -> dict[str, Any]:
+    if username == "admin":
+        raise HTTPException(status_code=400, detail="不能删除内置 admin")
+    removed = _users.remove(username)
+    if removed:
+        _ctx.audit.append(actor=actor, action="user_delete", target=username, details={})
+    return {"status": "deleted" if removed else "not_found", "username": username}
 
 
 class ConfigIn(BaseModel):
@@ -283,11 +361,14 @@ class ConfigIn(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
+    actor: str = "未知"
+
 
 @app.get("/api/config")
 async def get_config() -> dict[str, Any]:
-    s = get_settings()
-    base: dict[str, Any] = {
+    """有效配置（DB 覆盖 .env）。敏感键只回"是否已配置"，不回明文。"""
+    s = _settings
+    return {
         "llm_base_url": s.llm_base_url,
         "llm_model": s.llm_model,
         "llm_api_key_set": bool(s.llm_api_key),
@@ -296,14 +377,29 @@ async def get_config() -> dict[str, Any]:
         "es_hosts": s.es_hosts,
         "wechat_webhook_set": bool(s.wechat_webhook),
     }
-    base.update(_config_overrides)
-    return base
 
 
 @app.put("/api/config")
-async def put_config(body: ConfigIn) -> dict[str, str]:
-    _config_overrides.update(body.model_dump())
-    return {"status": "saved", "note": "已暂存（内存）；DB 持久化与密钥加密为 P-18 待做"}
+async def put_config(body: ConfigIn) -> dict[str, Any]:
+    """改配置 → 存 DB（敏感键加密）+ 即时应用可热更项（预算/出域）。"""
+    global _settings, _notifier
+    data = body.model_dump(exclude_unset=True)
+    actor = str(data.pop("actor", "未知"))
+    applied = []
+    for key, raw in data.items():
+        if key not in EDITABLE_KEYS:
+            continue
+        _config_store.set(key, coerce(key, raw))
+        applied.append(key)
+    # 重算有效配置并热更可即时生效的项
+    _settings = _apply_overrides(get_settings(), _config_store.all_decrypted())
+    if _gateway.budget is not None:
+        _gateway.budget.monthly_cap_cny = _settings.monthly_budget_cny
+    _gateway.outbound_enabled = _settings.allow_outbound
+    _notifier = build_notifier(_settings.allow_outbound)
+    _ctx.audit.append(actor=actor, action="config_update", target="system", details={"keys": applied})
+    note = "已保存到 DB（敏感键已加密）。预算/出域即时生效；模型 key/base/model 重启后生效。"
+    return {"status": "saved", "applied": applied, "note": note}
 
 
 # Agent 名册（诚实反映代码实现状态：当前仅 Orchestrator + Triage 已编码）

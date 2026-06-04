@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     # 留空 → 内存存储（重启丢，CI/快速开发用）；填 postgresql://... → PG 持久化
     database_url: str = ""
 
+    # 配置密钥主密钥（Fernet key）。留空用派生 dev key（仅开发/CI；生产必须配，C-9）
+    master_key: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
