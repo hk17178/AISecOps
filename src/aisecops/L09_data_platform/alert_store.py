@@ -25,6 +25,11 @@ class Alert(BaseModel):
     title: str = ""
     verdict: str = "新"  # 新 / 真威胁 / 待研判 / 误报
     confidence: float = 0.0
+    # ---- 降噪相关（L08 前置）----
+    count: int = 1  # 合并了多少条同指纹/同窗告警（精确去重 + 时间窗归并）
+    fingerprint: str = ""  # 去重指纹 = hash(来源+主机+标题)
+    suppressed: bool = False  # 是否被抑制规则命中（标记而非丢弃，可回溯）
+    suppress_reason: str = ""  # 被哪条规则/为何抑制
 
 
 class AlertStore(ABC):
@@ -46,6 +51,11 @@ class AlertStore(ABC):
 
     @abstractmethod
     def count(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def bump(self, alert_id: str) -> Alert | None:
+        """把已存在告警的合并计数 +1（精确去重/时间窗归并命中时调用）。"""
         raise NotImplementedError
 
 
@@ -71,6 +81,10 @@ class InMemoryAlertStore(AlertStore):
             title=str(fields.get("title", "")),
             verdict=str(fields.get("verdict", "新")),
             confidence=float(fields.get("confidence", 0.0)),
+            count=int(fields.get("count", 1)),
+            fingerprint=str(fields.get("fingerprint", "")),
+            suppressed=bool(fields.get("suppressed", False)),
+            suppress_reason=str(fields.get("suppress_reason", "")),
         )
         self._alerts.append(alert)
         return alert
@@ -84,11 +98,20 @@ class InMemoryAlertStore(AlertStore):
     def count(self) -> int:
         return len(self._alerts)
 
+    def bump(self, alert_id: str) -> Alert | None:
+        for a in self._alerts:
+            if a.id == alert_id:
+                a.count += 1
+                return a
+        return None
+
 
 class PgAlertStore(AlertStore):
     """PostgreSQL 实现（持久化，P-18）。"""
 
-    _COLS = "seq, ts, host, source, severity, title, verdict, confidence"
+    _COLS = (
+        "seq, ts, host, source, severity, title, verdict, confidence, count, fingerprint, suppressed, suppress_reason"
+    )
 
     def __init__(self, database_url: str, clock: Callable[[], datetime] = _default_clock) -> None:
         from aisecops.L12_core_support.db import get_pool
@@ -101,6 +124,11 @@ class PgAlertStore(AlertStore):
                 "seq SERIAL PRIMARY KEY, ts text, host text, source text, "
                 "severity text, title text, verdict text, confidence double precision)"
             )
+            # 降噪字段（对旧表做增量迁移，幂等）
+            conn.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS count integer DEFAULT 1")
+            conn.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS fingerprint text DEFAULT ''")
+            conn.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS suppressed boolean DEFAULT false")
+            conn.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS suppress_reason text DEFAULT ''")
 
     @staticmethod
     def _to_alert(r: Any) -> Alert:
@@ -113,6 +141,10 @@ class PgAlertStore(AlertStore):
             title=r[5],
             verdict=r[6],
             confidence=r[7],
+            count=r[8] if r[8] is not None else 1,
+            fingerprint=r[9] or "",
+            suppressed=bool(r[10]),
+            suppress_reason=r[11] or "",
         )
 
     def add(self, fields: dict[str, Any]) -> Alert:
@@ -123,11 +155,28 @@ class PgAlertStore(AlertStore):
         title = str(fields.get("title", ""))
         verdict = str(fields.get("verdict", "新"))
         confidence = float(fields.get("confidence", 0.0))
+        count = int(fields.get("count", 1))
+        fingerprint = str(fields.get("fingerprint", ""))
+        suppressed = bool(fields.get("suppressed", False))
+        suppress_reason = str(fields.get("suppress_reason", ""))
         with self._pool.connection() as conn:
             row = conn.execute(
-                "INSERT INTO alerts (ts, host, source, severity, title, verdict, confidence) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING seq",
-                (ts, host, source, severity, title, verdict, confidence),
+                "INSERT INTO alerts (ts, host, source, severity, title, verdict, confidence, "
+                "count, fingerprint, suppressed, suppress_reason) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING seq",
+                (
+                    ts,
+                    host,
+                    source,
+                    severity,
+                    title,
+                    verdict,
+                    confidence,
+                    count,
+                    fingerprint,
+                    suppressed,
+                    suppress_reason,
+                ),
             ).fetchone()
         seq = int(row[0]) if row else 0
         return Alert(
@@ -139,6 +188,10 @@ class PgAlertStore(AlertStore):
             title=title,
             verdict=verdict,
             confidence=confidence,
+            count=count,
+            fingerprint=fingerprint,
+            suppressed=suppressed,
+            suppress_reason=suppress_reason,
         )
 
     def recent(self, limit: int = 50) -> list[Alert]:
@@ -156,6 +209,20 @@ class PgAlertStore(AlertStore):
             row = conn.execute("SELECT count(*) FROM alerts").fetchone()
         return int(row[0]) if row else 0
 
+    @staticmethod
+    def _seq_of(alert_id: str) -> int:
+        try:
+            return int(alert_id.split("-")[1])
+        except (ValueError, IndexError):
+            return -1
+
+    def bump(self, alert_id: str) -> Alert | None:
+        seq = self._seq_of(alert_id)
+        with self._pool.connection() as conn:
+            conn.execute("UPDATE alerts SET count = count + 1 WHERE seq=%s", (seq,))
+            row = conn.execute(f"SELECT {self._COLS} FROM alerts WHERE seq=%s", (seq,)).fetchone()
+        return self._to_alert(row) if row else None
+
 
 def build_alert_store(database_url: str = "") -> AlertStore:
     """有 database_url 用 PG（连不上回退内存）；否则内存。"""
@@ -168,8 +235,8 @@ def build_alert_store(database_url: str = "") -> AlertStore:
 
 
 def alert_stats(store: AlertStore) -> dict[str, Any]:
-    """聚合统计，给仪表盘用。"""
-    alerts = store.all()
+    """聚合统计，给仪表盘用（已降噪：抑制告警不计入分析师视图）。"""
+    alerts = [a for a in store.all() if not a.suppressed]
     by_severity: dict[str, int] = {}
     by_source: dict[str, int] = {}
     threats = 0

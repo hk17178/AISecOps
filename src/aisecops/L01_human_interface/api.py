@@ -36,6 +36,11 @@ from aisecops.L07_secops_capabilities import (
     build_alert_triage_service,
     build_investigation_service,
 )
+from aisecops.L08_analytics_engines import (
+    DedupEngine,
+    build_suppression_store,
+    seed_demo_rules,
+)
 from aisecops.L09_data_platform.alert_store import (
     alert_stats,
     build_alert_store,
@@ -72,6 +77,11 @@ _invest_service = build_investigation_service(_ctx)
 _alerts = build_alert_store(_db_url)
 if _alerts.count() == 0:
     seed_demo_alerts(_alerts)
+
+# 降噪（L08 前置）：抑制规则库 + 降噪引擎；入库前跑去重/归并/抑制
+_supp_rules = build_suppression_store(_db_url)
+seed_demo_rules(_supp_rules)
+_dedup = DedupEngine(_supp_rules)
 
 
 def get_gateway() -> LLMGateway:
@@ -334,14 +344,123 @@ class IngestIn(BaseModel):
 
 @app.post("/api/ingest/alert")
 async def ingest_alert(body: IngestIn) -> dict[str, Any]:
-    """L10 入库：归一化外部告警 → 存入 L09 告警库。"""
-    alert = _alerts.add(normalize_alert(body.model_dump()))
-    return alert.model_dump()
+    """L10 入库 → L08 降噪 → L09 告警库。
+
+    入库前跑降噪：抑制规则命中 → 标记抑制入库；同指纹时间窗内 → 并入计数；
+    否则新建。返回结果带 deduped 说明（可解释）。
+    """
+    fields = normalize_alert(body.model_dump())
+    decision = _dedup.evaluate(fields, _alerts.recent(500))
+    if decision.action == "merge":
+        merged = _alerts.bump(decision.target_id)
+        if merged is not None:
+            return {**merged.model_dump(), "deduped": "merged", "into": decision.target_id, "reason": decision.reason}
+        # 并入目标已不存在 → 退化为新建
+        decision.action = "new"
+    if decision.action == "suppress":
+        _supp_rules.bump_hit(decision.rule_id)
+        fields.update(fingerprint=decision.fingerprint, suppressed=True, suppress_reason=decision.reason)
+        alert = _alerts.add(fields)
+        return {**alert.model_dump(), "deduped": "suppressed", "reason": decision.reason}
+    fields["fingerprint"] = decision.fingerprint
+    alert = _alerts.add(fields)
+    return {**alert.model_dump(), "deduped": "new"}
 
 
 @app.get("/api/alerts")
-async def get_alerts() -> dict[str, Any]:
-    return {"alerts": [a.model_dump() for a in _alerts.recent(50)]}
+async def get_alerts(include_suppressed: bool = False) -> dict[str, Any]:
+    """告警列表。默认只看未抑制（降噪后）；include_suppressed=true 看全量（可回溯）。"""
+    alerts = _alerts.recent(200)
+    if not include_suppressed:
+        alerts = [a for a in alerts if not a.suppressed]
+    return {"alerts": [a.model_dump() for a in alerts[:50]]}
+
+
+@app.get("/api/dedupe/stats")
+async def get_dedupe_stats() -> dict[str, Any]:
+    """降噪效果（真实可解释）：原始事件数 vs 降噪后留存 + 各级贡献 + 规则命中。"""
+    alerts = _alerts.all()
+    rows = len(alerts)
+    merged_away = sum(max(0, a.count - 1) for a in alerts)  # 精确去重+时间窗归并折叠掉的
+    suppressed_rows = sum(1 for a in alerts if a.suppressed)
+    active = sum(1 for a in alerts if not a.suppressed)
+    raw_total = merged_away + rows  # 进入入口的原始事件总数
+    after = active  # 分析师实际要看的（降噪后）
+    reduction = round((1 - after / raw_total) * 100) if raw_total else 0
+    rules = _supp_rules.all()
+    suppressed_recent = [
+        {"id": a.id, "host": a.host, "title": a.title, "reason": a.suppress_reason}
+        for a in _alerts.recent(200)
+        if a.suppressed
+    ][:20]
+    return {
+        "raw_total": raw_total,
+        "after": after,
+        "reduction_pct": reduction,
+        "breakdown": {
+            "exact_window_merged": merged_away,
+            "suppressed": suppressed_rows,
+        },
+        "rules": [r.model_dump() for r in rules],
+        "rules_total": len(rules),
+        "rules_enabled": sum(1 for r in rules if r.enabled),
+        "suppressed_recent": suppressed_recent,
+    }
+
+
+class RuleIn(BaseModel):
+    """新建抑制规则。"""
+
+    name: str
+    kind: str = "keyword"  # host / source / keyword / ip
+    pattern: str
+    actor: str = "未知"
+
+
+@app.post("/api/suppression-rules")
+async def create_rule(body: RuleIn) -> dict[str, Any]:
+    """新建抑制规则（即时生效，写审计）。"""
+    if not body.name.strip() or not body.pattern.strip():
+        raise HTTPException(status_code=400, detail="名称与匹配内容不能为空")
+    if body.kind not in ("host", "source", "keyword", "ip"):
+        raise HTTPException(status_code=400, detail="kind 须为 host/source/keyword/ip 之一")
+    rule = _supp_rules.create(body.name.strip(), body.kind, body.pattern.strip())
+    _ctx.audit.append(
+        actor=body.actor,
+        action="suppression_create",
+        target=rule.id,
+        details={"name": rule.name, "kind": rule.kind, "pattern": rule.pattern},
+    )
+    return rule.model_dump()
+
+
+class RuleToggleIn(BaseModel):
+    enabled: bool
+    actor: str = "未知"
+
+
+@app.put("/api/suppression-rules/{rule_id}")
+async def toggle_rule(rule_id: str, body: RuleToggleIn) -> dict[str, Any]:
+    """启用/停用抑制规则（即时生效，写审计）。"""
+    rule = _supp_rules.set_enabled(rule_id, body.enabled)
+    if rule is None:
+        raise HTTPException(status_code=404, detail=f"规则 {rule_id} 不存在")
+    _ctx.audit.append(
+        actor=body.actor,
+        action="suppression_toggle",
+        target=rule_id,
+        details={"enabled": body.enabled},
+    )
+    return rule.model_dump()
+
+
+@app.delete("/api/suppression-rules/{rule_id}")
+async def delete_rule(rule_id: str, actor: str = "未知") -> dict[str, Any]:
+    """删除抑制规则（写审计）。"""
+    removed = _supp_rules.remove(rule_id)
+    if removed:
+        _ctx.audit.append(actor=actor, action="suppression_delete", target=rule_id, details={})
+    return {"status": "deleted" if removed else "not_found", "id": rule_id}
 
 
 @app.get("/api/dashboard")
