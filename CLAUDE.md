@@ -10,9 +10,11 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 
 ## 当前阶段
 
-🟡 **架构骨架阶段** —— 12 层目录与文档已就位，**代码 0 行**。
+🟡 **Sprint 1 基础设施（进行中）** —— 骨架完成；环境(uv+py3.11)、Docker compose、CI、Makefile、OTel 最小集成、重启手册已就位，`make check` 全绿。L12 可观测有首个可跑模块+测试。
+- ⏳ 待办：装 Docker 后跑通 `make dev`；5 条 PRD §9 待决策（跑哪/数据源/LLM/通知/CMDB）。
+- 🔜 **下一步 = S2 写 L05 LLM Gateway**，计划见 [docs/specs/L05-impl-plan.md](docs/specs/L05-impl-plan.md)。
 
-下一步 P0：L05 LLM Gateway + L02 Orchestrator + 1 个 MCP Server + L07 告警分诊端到端 demo。详见 [README.md](README.md) 的 Roadmap。
+完整路线见 [dev-plan.md](docs/specs/dev-plan.md)。
 
 ## ⚠️ 五条必读铁律（违反就要回滚）
 

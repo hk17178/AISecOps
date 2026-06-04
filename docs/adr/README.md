@@ -43,4 +43,7 @@
 | [0002](0002-architecture-v2-supersedes-png.md) | 架构 V2 取代 V1 PNG 成为视觉权威 | Accepted |
 | [0003](0003-self-use-positioning.md) | 项目定位为"自建自用内部工具" | Accepted |
 | [0004](0004-l06-mcp-optional-thin-adapter.md) | L06 执行形态：MCP 降级为可选，默认薄适配器 + code execution | Accepted |
+| [0005](0005-language-python.md) | 主语言采用 Python 3.11+ | Accepted |
+| [0006](0006-agent-orchestration-inhouse.md) | Agent 编排自研（不引 LangGraph） | Accepted |
+| [0007](0007-messaging-redis-streams.md) | 数据中间件起步用 Redis Streams | Accepted |
 | [0008](0008-cross-layer-dependency-dag.md) | 跨层规则改用显式依赖 DAG，L02/L07 为编排层（细化 C-13） | Accepted |

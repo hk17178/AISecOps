@@ -1,0 +1,41 @@
+name: CI
+
+# 触发：进 main 的 PR + 直接推 main。配合分支保护，协作者 PR 必须本流程通过。
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 同一分支重复推送时，取消旧的运行，省额度
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-type-test:
+    name: lint · type · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install deps (含 dev)
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Mypy 类型检查
+        run: mypy src
+
+      - name: Pytest（stub 模式，不烧 token）
+        run: pytest -q

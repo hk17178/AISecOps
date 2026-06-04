@@ -1,0 +1,8 @@
+# Grafana 自动配置 Prometheus 数据源（开箱即用，打开就能看 metric）
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
