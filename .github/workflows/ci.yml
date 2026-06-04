@@ -27,7 +27,7 @@ jobs:
 
       - name: 建 venv + 装依赖（含 dev）
         run: |
-          uv venv
+          uv venv --clear
           uv pip install -e ".[dev]"
 
       - name: Ruff lint
