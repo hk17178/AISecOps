@@ -10,7 +10,7 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 
 ## 当前阶段
 
-🟢 **Sprint 2 L05 LLM Gateway（进行中）** —— L05 S0–S6 + **S10 真 provider(OpenAI 兼容,API key)** 已实现；**L01 有可在浏览器打开的「L05 测试台」**（`make serve` → http://localhost:8000）。13 测试，`make check` 全绿、CI 绿。
+🟢 **业务闭环成型中（分诊→降噪→关联→事件→调查→HITL）** —— L05 网关全做完 + 场景路由；前端 17 项 IA 实页 + Chat 挂件。72 测试，`make check` 全绿、CI 绿。`make serve`(:8000) + `cd frontend && npm run dev`(:5173)。
 - ✅ 本地可跑可测：`make serve` 起服务，浏览器输入 prompt 调网关看响应+成本。无 key 走 stub；`.env` 配 `LLM_API_KEY` 即调真实 LLM。
 - ✅ **L05 核心全做完**（S0–S10 + 治理三件套 S7–S9）。
 - ✅ **Sprint 3 完成**：Orchestrator(路由) + Triage Agent（结构化研判 C-21 / 防注入 C-20 / abstain C-26 / cross-check C-27）+ Memory Store + 审计哈希链(C-23)。31 测试绿。
@@ -20,8 +20,13 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 - ✅ **HITL 工单系统**：真威胁研判→自动建单(C-8)→批准/驳回工作流（L02 tickets + `/api/tickets`），工单页接真后端、状态持久。
 - ✅ **Investigation Agent**（L02 第二 Agent）：事件调查接真（ES 日志建时间线 + LLM 攻击链）。`/api/investigate`。
 - ✅ **HITL 审批闭环**：工单批准/驳回**弹框填理由 → 写不可篡改审计链(C-23) → 审批记录可见**（Modal 组件 + `/api/audit`）。立起 CRUD+弹框+审计 标准模式。
-- ⚠️ **已知大缺口（用户提出）**：多数页仍偏只读，编辑/CRUD 欠账（抑制规则/外发规则/Prompt/报表/CMDB/RBAC/Agent配置/配置保存）+ 存储是内存(重启丢，待接 PG)。按上面模式逐个补。
-- 🔜 **下一步**：按 CRUD 模式补规则类/内容类编辑；接 PG 持久化；通知中枢企微；L02 真 RBAC；前端接 CI。**日志接入(ES)留最后**。
+- ✅ **PG 持久化地基**：仓储模式，告警/工单/路由/抑制规则/安全事件全可 PG（有 `DATABASE_URL` 走 PG，空/CI 走内存）。重启不丢。
+- ✅ **L05 场景→模型路由**（§4.4）：`ScenarioRouter` 按场景分配大模型（分诊=快、调查/关联=强），`LLM_PROFILES` 配档位，`/api/routing` 增删改+审计，`模型&成本`页可编辑。
+- ✅ **Chat 助手**改右下角常驻挂件（每页可用，经网关 `L01/chat` + C-20 沙箱）。
+- ✅ **告警降噪**（§1.2，L08）：指纹去重+时间窗归并+抑制规则 CRUD，`告警降噪`页接真（降噪率/被抑制可回溯）。
+- ✅ **关联分析**（§1.5，L08/L07）：并查集聚簇→LLM 跨告警攻击链(带引用 C-24)→人工确认建安全事件(PG)，`关联分析`页接真。闭环：分诊→降噪→关联→事件→调查。
+- ⚠️ **仍欠账 CRUD**：外发规则/Prompt/报表/CMDB/RBAC/Agent配置/系统配置持久化+密钥加密(§4.5)。按既有 CRUD+弹框+审计 模式补。
+- 🔜 **下一步**：SOAR 处置剧本；外发/通知中枢企微；报表生成；CMDB/Prompt/Agent 配置 CRUD；L02 真 RBAC + 配置持久化。**日志接入(ES)留最后**。
 - ✅ 环境齐全：Docker(Colima)+决策全定；后端 `make serve`(:8000)，前端 `cd frontend && npm run dev`(:5173)。
 
 完整路线见 [dev-plan.md](docs/specs/dev-plan.md)。
