@@ -8,6 +8,7 @@ from __future__ import annotations
 from aisecops.L12_core_support.config import Settings, get_settings
 
 from .data_sources.elasticsearch import ESLogSource, StubLogSource
+from .notifier import HttpNotifier, Notifier, StubNotifier, build_notifier
 from .registry import LogSource, ToolRegistry
 
 __all__ = [
@@ -16,6 +17,10 @@ __all__ = [
     "ESLogSource",
     "StubLogSource",
     "build_tool_registry",
+    "Notifier",
+    "StubNotifier",
+    "HttpNotifier",
+    "build_notifier",
 ]
 
 
