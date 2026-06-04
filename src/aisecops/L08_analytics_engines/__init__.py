@@ -4,6 +4,15 @@
 """
 
 from .correlation import Cluster, correlate
+from .intel import (
+    IoC,
+    IocStore,
+    InMemoryIocStore,
+    PgIocStore,
+    build_ioc_store,
+    match_iocs,
+    seed_demo_iocs,
+)
 from .dedup import (
     DedupDecision,
     DedupEngine,
@@ -30,4 +39,11 @@ __all__ = [
     "seed_demo_rules",
     "Cluster",
     "correlate",
+    "IoC",
+    "IocStore",
+    "InMemoryIocStore",
+    "PgIocStore",
+    "build_ioc_store",
+    "match_iocs",
+    "seed_demo_iocs",
 ]

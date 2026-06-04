@@ -51,7 +51,10 @@ from aisecops.L07_secops_capabilities import (
 )
 from aisecops.L08_analytics_engines import (
     DedupEngine,
+    build_ioc_store,
     build_suppression_store,
+    match_iocs,
+    seed_demo_iocs,
     seed_demo_rules,
 )
 from aisecops.L09_data_platform.alert_store import (
@@ -124,6 +127,11 @@ _reporting = build_reporting_service(_gateway)
 _assets = build_asset_store(_db_url)
 if not _assets.all():
     seed_demo_assets(_assets)
+
+# 威胁情报 IoC（L08）：入库命中标红 + 计数
+_iocs = build_ioc_store(_db_url)
+if not _iocs.all():
+    seed_demo_iocs(_iocs)
 
 
 def get_gateway() -> LLMGateway:
@@ -404,6 +412,9 @@ async def ingest_alert(body: IngestIn) -> dict[str, Any]:
     否则新建。返回结果带 deduped 说明（可解释）。
     """
     fields = normalize_alert(body.model_dump())
+    # 威胁情报匹配：命中 IoC 即给情报计数（标红在列表里动态体现）
+    for ioc in match_iocs(fields, _iocs.all()):
+        _iocs.bump_hit(ioc.id)
     decision = _dedup.evaluate(fields, _alerts.recent(500))
     if decision.action == "merge":
         merged = _alerts.bump(decision.target_id)
@@ -423,11 +434,20 @@ async def ingest_alert(body: IngestIn) -> dict[str, Any]:
 
 @app.get("/api/alerts")
 async def get_alerts(include_suppressed: bool = False) -> dict[str, Any]:
-    """告警列表。默认只看未抑制（降噪后）；include_suppressed=true 看全量（可回溯）。"""
+    """告警列表。默认只看未抑制（降噪后）；include_suppressed=true 看全量（可回溯）。
+
+    每条附 ioc_hits（命中的威胁情报值），供前端标红。
+    """
     alerts = _alerts.recent(200)
     if not include_suppressed:
         alerts = [a for a in alerts if not a.suppressed]
-    return {"alerts": [a.model_dump() for a in alerts[:50]]}
+    iocs = _iocs.all()
+    out = []
+    for a in alerts[:50]:
+        d = a.model_dump()
+        d["ioc_hits"] = [i.value for i in match_iocs(d, iocs)]
+        out.append(d)
+    return {"alerts": out}
 
 
 @app.get("/api/dedupe/stats")
@@ -1057,6 +1077,38 @@ async def delete_asset(asset_id: str, actor: str = "未知") -> dict[str, Any]:
     if removed:
         _ctx.audit.append(actor=actor, action="asset_delete", target=asset_id, details={})
     return {"status": "deleted" if removed else "not_found", "id": asset_id}
+
+
+@app.get("/api/iocs")
+async def get_iocs() -> dict[str, Any]:
+    return {"iocs": [i.model_dump() for i in _iocs.all()], "type_options": ["域名", "IP", "哈希", "URL"]}
+
+
+class IocIn(BaseModel):
+    value: str
+    type: str = "IP"
+    severity: str = "高"
+    note: str = ""
+    actor: str = "未知"
+
+
+@app.post("/api/iocs")
+async def create_ioc(body: IocIn) -> dict[str, Any]:
+    if not body.value.strip():
+        raise HTTPException(status_code=400, detail="IoC 值不能为空")
+    if body.type not in ("域名", "IP", "哈希", "URL"):
+        raise HTTPException(status_code=400, detail="type 须为 域名/IP/哈希/URL")
+    i = _iocs.create(body.value.strip(), body.type, body.severity, body.note.strip())
+    _ctx.audit.append(actor=body.actor, action="ioc_create", target=i.id, details={"value": i.value, "type": i.type})
+    return i.model_dump()
+
+
+@app.delete("/api/iocs/{ioc_id}")
+async def delete_ioc(ioc_id: str, actor: str = "未知") -> dict[str, Any]:
+    removed = _iocs.remove(ioc_id)
+    if removed:
+        _ctx.audit.append(actor=actor, action="ioc_delete", target=ioc_id, details={})
+    return {"status": "deleted" if removed else "not_found", "id": ioc_id}
 
 
 @app.get("/api/audit")
