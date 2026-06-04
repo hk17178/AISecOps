@@ -12,6 +12,7 @@ export const NAV: NavItem[] = [
   { group: '概览', key: 'dashboard', label: '仪表盘', path: '/' },
   { group: '安全运营', key: 'dedupe', label: '告警降噪', path: '/dedupe' },
   { group: '安全运营', key: 'triage', label: '告警分诊', path: '/triage', badge: '38' },
+  { group: '安全运营', key: 'correlate', label: '关联分析', path: '/correlate' },
   { group: '安全运营', key: 'invest', label: '事件调查', path: '/invest' },
   { group: '安全运营', key: 'hunt', label: '威胁狩猎', path: '/hunt', tag: 'V2' },
   { group: '安全运营', key: 'soar', label: 'SOAR 处置', path: '/soar' },

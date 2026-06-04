@@ -4,6 +4,7 @@
 """
 
 from .base import Agent, AgentContext, AgentResult, Task
+from .correlation import CorrelationAgent, CorrelationConclusion
 from .investigation import InvestigationAgent, InvestigationVerdict
 from .memory import InMemoryMemoryStore, MemoryStore
 from .orchestrator import Orchestrator, OrchestratorError
@@ -31,6 +32,8 @@ __all__ = [
     "TriageVerdict",
     "InvestigationAgent",
     "InvestigationVerdict",
+    "CorrelationAgent",
+    "CorrelationConclusion",
     "Ticket",
     "TicketStore",
     "InMemoryTicketStore",

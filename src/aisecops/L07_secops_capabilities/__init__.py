@@ -1,9 +1,10 @@
 """L07 · AISecOps 业务能力出口。
 
-当前：alert_triage（告警分诊）+ investigation（事件调查）。后续：soar / hunting / ...
+当前：alert_triage（告警分诊）+ investigation（事件调查）+ correlation（关联分析）。后续：soar / hunting / ...
 """
 
 from .alert_triage import AlertTriageService, build_alert_triage_service
+from .correlation import CorrelationService, build_correlation_service
 from .investigation import InvestigationService, build_investigation_service
 
 __all__ = [
@@ -11,4 +12,6 @@ __all__ = [
     "build_alert_triage_service",
     "InvestigationService",
     "build_investigation_service",
+    "CorrelationService",
+    "build_correlation_service",
 ]

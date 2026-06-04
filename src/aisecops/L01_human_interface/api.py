@@ -32,8 +32,10 @@ from aisecops.L05_gateway.llm_gateway import (
 from aisecops.L06_mcp_servers import build_tool_registry
 from aisecops.L07_secops_capabilities import (
     AlertTriageService,
+    CorrelationService,
     InvestigationService,
     build_alert_triage_service,
+    build_correlation_service,
     build_investigation_service,
 )
 from aisecops.L08_analytics_engines import (
@@ -46,6 +48,7 @@ from aisecops.L09_data_platform.alert_store import (
     build_alert_store,
     seed_demo_alerts,
 )
+from aisecops.L09_data_platform.event_store import build_event_store
 from aisecops.L10_data_collection.ingest import normalize_alert
 from aisecops.L12_core_support.config import get_settings
 
@@ -72,6 +75,7 @@ if not _tickets.all():
     seed_demo_tickets(_tickets)
 _triage_service = build_alert_triage_service(_ctx, _tickets)
 _invest_service = build_investigation_service(_ctx)
+_corr_service = build_correlation_service(_ctx)
 
 # 告警库（接 SIEM webhook 后真数据流入）
 _alerts = build_alert_store(_db_url)
@@ -82,6 +86,9 @@ if _alerts.count() == 0:
 _supp_rules = build_suppression_store(_db_url)
 seed_demo_rules(_supp_rules)
 _dedup = DedupEngine(_supp_rules)
+
+# 关联分析产物：安全事件库（关联簇人工确认后升级而来）
+_events = build_event_store(_db_url)
 
 
 def get_gateway() -> LLMGateway:
@@ -97,6 +104,11 @@ def get_triage_service() -> AlertTriageService:
 def get_invest_service() -> InvestigationService:
     """可被测试覆盖的调查服务依赖。"""
     return _invest_service
+
+
+def get_corr_service() -> CorrelationService:
+    """可被测试覆盖的关联分析服务依赖。"""
+    return _corr_service
 
 
 class CallIn(BaseModel):
@@ -484,6 +496,45 @@ async def investigate(body: InvestigateIn, svc: InvestigationService = Depends(g
     """事件调查：查 ES 日志建时间线 + LLM 推断攻击链。"""
     result = await svc.investigate(body.host, body.question)
     return result.model_dump()
+
+
+@app.post("/api/correlate")
+async def correlate_alerts(svc: CorrelationService = Depends(get_corr_service)) -> dict[str, Any]:
+    """关联分析：L08 把当前告警聚成候选事件簇 → 每簇 LLM 出攻击链结论（带引用 C-24）。"""
+    alerts = _alerts.recent(200)
+    results = await svc.correlate(alerts)
+    return {"candidates": results, "count": len(results)}
+
+
+@app.get("/api/events")
+async def get_events() -> dict[str, Any]:
+    """已确认的安全事件列表。"""
+    return {"events": [e.model_dump() for e in _events.all()]}
+
+
+class EventConfirmIn(BaseModel):
+    """把一个关联簇确认升级为安全事件。"""
+
+    title: str
+    severity: str = "高"
+    summary: str = ""
+    alert_ids: list[str] = []
+    actor: str = "未知"
+
+
+@app.post("/api/events/confirm")
+async def confirm_event(body: EventConfirmIn) -> dict[str, Any]:
+    """人工确认关联结论 → 创建安全事件（持久化 + 审计 C-23）。"""
+    if not body.title.strip():
+        raise HTTPException(status_code=400, detail="事件标题不能为空")
+    ev = _events.create(body.title.strip(), body.severity, body.summary, body.alert_ids)
+    _ctx.audit.append(
+        actor=body.actor,
+        action="event_confirm",
+        target=ev.id,
+        details={"title": ev.title, "alert_ids": body.alert_ids, "severity": body.severity},
+    )
+    return ev.model_dump()
 
 
 @app.get("/api/tickets")
