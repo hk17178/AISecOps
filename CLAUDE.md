@@ -19,7 +19,9 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 - ✅ **P1 告警库就位**：L09 AlertStore + L10 入库归一化 + `/api/ingest/alert` `/api/alerts` `/api/dashboard`。**仪表盘接真**（总数/真威胁/待研判/成本/最新告警，来自真 store）。Agent/MCP/成本 三页也是真后端。
 - ✅ **HITL 工单系统**：真威胁研判→自动建单(C-8)→批准/驳回工作流（L02 tickets + `/api/tickets`），工单页接真后端、状态持久。
 - ✅ **Investigation Agent**（L02 第二 Agent）：事件调查接真（ES 日志建时间线 + LLM 攻击链）。`/api/investigate`。
-- 🔜 **下一步**：通知中枢企微（外发接真）；L02 真 RBAC（登录）；前端接 CI；SOAR Playbook。**日志接入(ES)留到所有功能开发完再做**。
+- ✅ **HITL 审批闭环**：工单批准/驳回**弹框填理由 → 写不可篡改审计链(C-23) → 审批记录可见**（Modal 组件 + `/api/audit`）。立起 CRUD+弹框+审计 标准模式。
+- ⚠️ **已知大缺口（用户提出）**：多数页仍偏只读，编辑/CRUD 欠账（抑制规则/外发规则/Prompt/报表/CMDB/RBAC/Agent配置/配置保存）+ 存储是内存(重启丢，待接 PG)。按上面模式逐个补。
+- 🔜 **下一步**：按 CRUD 模式补规则类/内容类编辑；接 PG 持久化；通知中枢企微；L02 真 RBAC；前端接 CI。**日志接入(ES)留最后**。
 - ✅ 环境齐全：Docker(Colima)+决策全定；后端 `make serve`(:8000)，前端 `cd frontend && npm run dev`(:5173)。
 
 完整路线见 [dev-plan.md](docs/specs/dev-plan.md)。
