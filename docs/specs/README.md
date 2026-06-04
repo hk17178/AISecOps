@@ -9,6 +9,7 @@
 | [PRD.md](PRD.md) | 需求文档（自用版）：3 角色 / 4 场景 / 务实指标 | Draft v0.2 |
 | [technical-design.md](technical-design.md) | 技术设计（自用版）：单一本地部署 / 务实选型 | Draft v0.2 |
 | [dev-plan.md](dev-plan.md) | 开发计划（自用版）：8 Sprint / 16 周到同事用起来 | Draft v0.2 |
+| [feature-acceptance.md](feature-acceptance.md) | **功能验收清单**：每个功能"完成"的硬标准 + 真实逻辑 + 禁假按钮 | Accepted v1.0 |
 | [compatibility.md](compatibility.md) | 系统兼容性矩阵：OS / CPU / 容器 / K8s / 端口 / 硬件 | Accepted v0.1 |
 | [L05-impl-plan.md](L05-impl-plan.md) | L05 LLM Gateway 实现计划（Sprint 2）：TDD / stub-first / S0–S12 | Draft v0.1 |
 

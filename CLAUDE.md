@@ -49,6 +49,7 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 | **需求文档 PRD** | [docs/specs/PRD.md](docs/specs/PRD.md) |
 | **技术设计方案** | [docs/specs/technical-design.md](docs/specs/technical-design.md) |
 | **开发计划** | [docs/specs/dev-plan.md](docs/specs/dev-plan.md) |
+| **功能验收清单（"完成"判定）** | [docs/specs/feature-acceptance.md](docs/specs/feature-acceptance.md) |
 | **系统兼容性矩阵** | [docs/specs/compatibility.md](docs/specs/compatibility.md) |
 | **前端设计语言规范（L01）** | [docs/design/frontend-design-language.md](docs/design/frontend-design-language.md) |
 | **架构 V2 文字版（视觉权威）** | [docs/architecture-v2.md](docs/architecture-v2.md) |
@@ -76,6 +77,7 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 - 零运维理念：能用托管/Serverless 不用自维护
 - 不要把秘密/凭证/模型权重提交进仓库
 - 与架构冲突时一律以 [docs/architecture-v2.md](docs/architecture-v2.md) 文字权威为准（V1 PNG 已 superseded，见 ADR-0002）
+- **🚫 禁假按钮 + 整体可用（硬要求）**：功能必须**真实可用**——有真后端逻辑、可操作(CRUD/动作)、写动作留痕(C-23)、持久化(P-18)，详见 [功能验收清单](docs/specs/feature-acceptance.md)。**禁止"点了只弹提示、实则啥也没干"的假按钮**（要么真生效，要么标"未实现"并禁用）。菜单不做孤岛，要串成业务闭环（采集→降噪→分诊→关联→调查→处置→外发→工单→报表）。"功能完成"以 [DoD §8.0](docs/specs/dev-plan.md) 为准。
 
 ## 当前 git 状态
 
