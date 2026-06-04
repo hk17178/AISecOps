@@ -16,8 +16,8 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 - ✅ **Sprint 3 完成**：Orchestrator(路由) + Triage Agent（结构化研判 C-21 / 防注入 C-20 / abstain C-26 / cross-check C-27）+ Memory Store + 审计哈希链(C-23)。31 测试绿。
 - ✅ **Sprint 4 后端端到端打通（M2 核心）**：L06 ES 适配器(薄适配器)+ L07 `alert_triage`。`POST /api/triage` 真实跑通 Orchestrator→Triage→ES 富化→研判（离线 stub 诚实 abstain，配真 LLM 出真研判）。39 源文件 / 37 测试绿。
 - ✅ **L01 React 前端完整成型**（`frontend/`，暖纸主题）：登录页 + **17 项 IA 全部实页** + 路由保护 + 动效（翻牌/计数/入场/呼吸）。Triage 真调端到端、Settings 配置走 Web、工单 HITL 审批交互。typecheck+build 通过。
-- ✅ **AI Agent/MCP/成本 三页已接真后端**（`/api/agents` `/api/tools` `/api/cost`，诚实显示真实状态/统计）。其余页（降噪/工单/情报/CMDB…）无后端，示意待 P1。
-- 🔜 **下一步**：前端接 CI；`/api/login` → L02 真 RBAC；P1 业务后端（Investigation Agent / 通知中枢企微 / 工单 / 告警库），有了数据源再把对应页接真。
+- ✅ **P1 告警库就位**：L09 AlertStore + L10 入库归一化 + `/api/ingest/alert` `/api/alerts` `/api/dashboard`。**仪表盘接真**（总数/真威胁/待研判/成本/最新告警，来自真 store）。Agent/MCP/成本 三页也是真后端。
+- 🔜 **下一步 P1**：把降噪/工单页接告警库；Investigation Agent（事件调查接真）；通知中枢企微（外发接真）；L02 真 RBAC；前端接 CI。
 - ✅ 环境齐全：Docker(Colima)+决策全定；后端 `make serve`(:8000)，前端 `cd frontend && npm run dev`(:5173)。
 
 完整路线见 [dev-plan.md](docs/specs/dev-plan.md)。
