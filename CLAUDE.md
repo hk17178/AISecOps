@@ -15,8 +15,9 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 - ✅ **L05 核心全做完**（S0–S10 + 治理三件套 S7–S9）。
 - ✅ **Sprint 3 完成**：Orchestrator(路由) + Triage Agent（结构化研判 C-21 / 防注入 C-20 / abstain C-26 / cross-check C-27）+ Memory Store + 审计哈希链(C-23)。31 测试绿。
 - ✅ **Sprint 4 后端端到端打通（M2 核心）**：L06 ES 适配器(薄适配器)+ L07 `alert_triage`。`POST /api/triage` 真实跑通 Orchestrator→Triage→ES 富化→研判（离线 stub 诚实 abstain，配真 LLM 出真研判）。39 源文件 / 37 测试绿。
-- 🔜 **下一步 = L01 前端框架**（React，按暖纸设计语言，含系统设置页配置走 Web P-18）—— M2 的可视化收尾。
-- ✅ 环境齐全：Docker(Colima) `make dev` 起 PG+Redis；决策全定(ADR-0010)；`make serve` → localhost:8000 测试台 + /api/triage。
+- ✅ **L01 React 前端框架已搭**（`frontend/`，Vite+React+TS+Tailwind 暖纸主题）：**登录页** + 17 项侧栏壳 + 路由保护；Dashboard/Triage(真调端到端)/Settings(配置走 Web P-18) 实页 + 14 占位。真编译+运行+截图验证。
+- 🔜 **下一步**：把 14 个占位页按设计语言逐个填实；前端接 CI；L02 平台核心真 RBAC（替换 /api/login 占位）。
+- ✅ 环境齐全：Docker(Colima)+决策全定；后端 `make serve`(:8000)，前端 `cd frontend && npm run dev`(:5173)。
 
 完整路线见 [dev-plan.md](docs/specs/dev-plan.md)。
 
