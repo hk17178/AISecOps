@@ -22,6 +22,12 @@ from aisecops.L07_secops_capabilities import (
     AlertTriageService,
     build_alert_triage_service,
 )
+from aisecops.L09_data_platform.alert_store import (
+    InMemoryAlertStore,
+    alert_stats,
+    seed_demo_alerts,
+)
+from aisecops.L10_data_collection.ingest import normalize_alert
 from aisecops.L12_core_support.config import get_settings
 
 app = FastAPI(title="AISECOPS · L05 测试台", version="0.1.0")
@@ -32,6 +38,10 @@ _gateway = build_gateway()
 _registry = build_tool_registry()
 _ctx = AgentContext(llm=_gateway, tools=_registry)
 _triage_service = build_alert_triage_service(_ctx)
+
+# 告警库（真 store + 演示种子；接 SIEM webhook 后真数据流入）
+_alerts = InMemoryAlertStore()
+seed_demo_alerts(_alerts)
 
 
 def get_gateway() -> LLMGateway:
@@ -183,6 +193,34 @@ async def get_cost() -> dict[str, Any]:
         "by_scenario": by_scenario,
         "providers": [{"name": p.name, "model": p.model, "outbound": p.outbound} for p in _gateway.providers],
     }
+
+
+class IngestIn(BaseModel):
+    """告警入库入参（允许任意原始字段）。"""
+
+    model_config = ConfigDict(extra="allow")
+
+
+@app.post("/api/ingest/alert")
+async def ingest_alert(body: IngestIn) -> dict[str, Any]:
+    """L10 入库：归一化外部告警 → 存入 L09 告警库。"""
+    alert = _alerts.add(normalize_alert(body.model_dump()))
+    return alert.model_dump()
+
+
+@app.get("/api/alerts")
+async def get_alerts() -> dict[str, Any]:
+    return {"alerts": [a.model_dump() for a in _alerts.recent(50)]}
+
+
+@app.get("/api/dashboard")
+async def get_dashboard() -> dict[str, Any]:
+    stats = alert_stats(_alerts)
+    budget = _gateway.budget
+    stats["spent_cny"] = round(budget.spent(), 4) if budget else 0.0
+    stats["monthly_cap_cny"] = budget.monthly_cap_cny if budget else 0.0
+    stats["triage_calls"] = len(_gateway.recorder.history)
+    return stats
 
 
 @app.get("/")
