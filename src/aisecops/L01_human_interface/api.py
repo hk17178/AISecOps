@@ -30,6 +30,7 @@ from aisecops.L02_agents import (
     seed_demo_playbooks,
     seed_demo_tickets,
 )
+from aisecops.L04_ai_assets_models import build_prompt_store, seed_demo_prompts
 from aisecops.L05_gateway.llm_gateway import (
     LLMGateway,
     Message,
@@ -132,6 +133,10 @@ if not _assets.all():
 _iocs = build_ioc_store(_db_url)
 if not _iocs.all():
     seed_demo_iocs(_iocs)
+
+# Prompt 治理（L04）：版本化编辑/回滚
+_prompts = build_prompt_store(_db_url)
+seed_demo_prompts(_prompts)
 
 
 def get_gateway() -> LLMGateway:
@@ -1109,6 +1114,69 @@ async def delete_ioc(ioc_id: str, actor: str = "未知") -> dict[str, Any]:
     if removed:
         _ctx.audit.append(actor=actor, action="ioc_delete", target=ioc_id, details={})
     return {"status": "deleted" if removed else "not_found", "id": ioc_id}
+
+
+@app.get("/api/prompts")
+async def get_prompts() -> dict[str, Any]:
+    """Prompt 列表（每个 key 的活跃版本概览）。"""
+    out = []
+    for key in _prompts.keys():
+        act = _prompts.active(key)
+        out.append(
+            {
+                "key": key,
+                "active_version": act.version if act else 0,
+                "versions": len(_prompts.versions(key)),
+                "updated": act.ts if act else "",
+            }
+        )
+    return {"prompts": out}
+
+
+@app.get("/api/prompts/{key:path}")
+async def get_prompt_detail(key: str) -> dict[str, Any]:
+    """某 Prompt 的活跃版本 + 全部历史版本（用于 diff/回滚）。"""
+    versions = _prompts.versions(key)
+    if not versions:
+        raise HTTPException(status_code=404, detail=f"Prompt {key} 不存在")
+    act = _prompts.active(key)
+    return {
+        "key": key,
+        "active_version": act.version if act else 0,
+        "versions": [v.model_dump() for v in versions],
+    }
+
+
+class PromptRollbackIn(BaseModel):
+    version: int
+    actor: str = "未知"
+
+
+# 注意：rollback 路由必须定义在贪婪的 {key:path} save 之前，否则被其捕获
+@app.post("/api/prompts/{key:path}/rollback")
+async def rollback_prompt(key: str, body: PromptRollbackIn) -> dict[str, Any]:
+    """回滚：把活跃版本指回指定旧版本。"""
+    pv = _prompts.rollback(key, body.version, body.actor)
+    if pv is None:
+        raise HTTPException(status_code=404, detail=f"{key} 无版本 {body.version}")
+    _ctx.audit.append(actor=body.actor, action="prompt_rollback", target=key, details={"version": body.version})
+    return pv.model_dump()
+
+
+class PromptSaveIn(BaseModel):
+    content: str
+    note: str = ""
+    actor: str = "未知"
+
+
+@app.post("/api/prompts/{key:path}")
+async def save_prompt(key: str, body: PromptSaveIn) -> dict[str, Any]:
+    """编辑保存为新版本（自动置为活跃，旧版本保留可回滚）。"""
+    if not body.content.strip():
+        raise HTTPException(status_code=400, detail="内容不能为空")
+    pv = _prompts.save(key, body.content, body.note.strip(), body.actor)
+    _ctx.audit.append(actor=body.actor, action="prompt_save", target=key, details={"version": pv.version})
+    return pv.model_dump()
 
 
 @app.get("/api/audit")
