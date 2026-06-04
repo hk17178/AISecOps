@@ -28,7 +28,9 @@ def test_stub_notifier_no_network() -> None:
 
 def test_match_dispatch_rules() -> None:
     rules = [
-        DispatchRule(id="DR-1", name="严重真威胁", trigger_verdict="真威胁", trigger_severity="严重", channel_id="CH-1"),
+        DispatchRule(
+            id="DR-1", name="严重真威胁", trigger_verdict="真威胁", trigger_severity="严重", channel_id="CH-1"
+        ),
         DispatchRule(id="DR-2", name="停用", trigger_verdict="真威胁", channel_id="CH-1", enabled=False),
     ]
     assert [r.id for r in match_dispatch_rules({"verdict": "真威胁", "severity": "严重"}, rules)] == ["DR-1"]
