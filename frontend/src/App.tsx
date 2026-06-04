@@ -10,7 +10,6 @@ import Hunt from './pages/Hunt'
 import Soar from './pages/Soar'
 import Ticket from './pages/Ticket'
 import Dispatch from './pages/Dispatch'
-import Chat from './pages/Chat'
 import Report from './pages/Report'
 import Cmdb from './pages/Cmdb'
 import Intel from './pages/Intel'
@@ -40,7 +39,6 @@ export default function App() {
           <Route path="/soar" element={<Soar />} />
           <Route path="/ticket" element={<Ticket />} />
           <Route path="/dispatch" element={<Dispatch />} />
-          <Route path="/chat" element={<Chat />} />
           <Route path="/report" element={<Report />} />
           <Route path="/cmdb" element={<Cmdb />} />
           <Route path="/intel" element={<Intel />} />

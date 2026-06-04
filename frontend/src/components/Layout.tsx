@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { NAV, NAV_GROUPS } from '../nav'
 import { useAuth } from '../auth'
+import ChatWidget from './ChatWidget'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -67,6 +68,9 @@ export default function Layout() {
           </div>
         </main>
       </div>
+
+      {/* 全局常驻 Chat 助手（右下角，每页可用） */}
+      <ChatWidget />
     </div>
   )
 }

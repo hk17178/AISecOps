@@ -58,6 +58,7 @@ DEFAULT_ROUTES: dict[str, str] = {
     # 高频低风险：便宜/快模型
     "L07/alert_triage": "快",
     "L07/alert_dedupe": "快",
+    "L01/chat": "快",
     # 高价值推理：强模型
     "L07/investigation": "强",
     "L08/correlation": "强",

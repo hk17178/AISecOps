@@ -17,7 +17,6 @@ export const NAV: NavItem[] = [
   { group: '安全运营', key: 'soar', label: 'SOAR 处置', path: '/soar' },
   { group: '协作', key: 'ticket', label: '工单 & HITL', path: '/ticket', badge: '6' },
   { group: '协作', key: 'dispatch', label: '外发 · 通知分发', path: '/dispatch' },
-  { group: '协作', key: 'chat', label: 'Chat 助手', path: '/chat' },
   { group: '协作', key: 'report', label: '报表中心', path: '/report' },
   { group: '资产 · 情报', key: 'cmdb', label: '资产 CMDB', path: '/cmdb' },
   { group: '资产 · 情报', key: 'intel', label: '威胁情报', path: '/intel' },
