@@ -22,6 +22,8 @@ class Provider(ABC):
     model: str = "unknown"
     # 每 1k token 价格（人民币），用于成本核算与预算控制
     price_per_1k_cny: float = 0.0
+    # 是否「出域」（数据离开内网到外部）。出域调用受全局开关限制且需脱敏（C-32）
+    outbound: bool = False
 
     @abstractmethod
     async def complete(self, request: LLMRequest) -> tuple[str, TokenUsage]:

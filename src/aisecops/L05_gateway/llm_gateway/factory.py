@@ -33,4 +33,4 @@ def build_gateway(settings: Settings | None = None) -> LLMGateway:
     providers.append(StubProvider())
 
     budget = BudgetTracker(monthly_cap_cny=settings.monthly_budget_cny)
-    return LLMGateway(providers, budget=budget)
+    return LLMGateway(providers, budget=budget, outbound_enabled=settings.allow_outbound)

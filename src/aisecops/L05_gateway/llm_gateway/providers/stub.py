@@ -26,16 +26,22 @@ class StubProvider(Provider):
         model: str = "stub-1",
         price_per_1k_cny: float = 0.0,
         fail: bool = False,
+        canned: str | None = None,
     ) -> None:
         self.model = model
         self.price_per_1k_cny = price_per_1k_cny
         self._fail = fail
+        # 指定固定返回内容（用于测 schema 校验 / cross-check）；None 则回显输入
+        self._canned = canned
 
     async def complete(self, request: LLMRequest) -> tuple[str, TokenUsage]:
         if self._fail:
             raise ProviderError(f"stub[{self.model}] 强制失败（用于测降级）")
-        last = request.messages[-1].content if request.messages else ""
-        content = f"[stub:{request.scenario}] {last[:200]}"
+        if self._canned is not None:
+            content = self._canned
+        else:
+            last = request.messages[-1].content if request.messages else ""
+            content = f"[stub:{request.scenario}] {last[:200]}"
         usage = TokenUsage(
             prompt_tokens=_estimate_tokens(request),
             completion_tokens=max(1, len(content) // 4),

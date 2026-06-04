@@ -12,7 +12,7 @@
 from .budget import BudgetExceeded, BudgetTracker
 from .factory import build_gateway
 from .fallback import GatewayError, complete_with_fallback
-from .gateway import LLMGateway
+from .gateway import LLMGateway, SchemaValidationError
 from .metadata import MetadataRecorder
 from .models import (
     CallMetadata,
@@ -28,6 +28,7 @@ from .providers.stub import StubProvider
 
 __all__ = [
     "LLMGateway",
+    "SchemaValidationError",
     "build_gateway",
     "BudgetTracker",
     "BudgetExceeded",

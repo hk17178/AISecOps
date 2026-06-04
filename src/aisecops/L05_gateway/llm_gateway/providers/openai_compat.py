@@ -9,6 +9,7 @@ from __future__ import annotations
 import httpx
 
 from ..models import LLMRequest, TokenUsage
+from ..outbound_switch import is_outbound_url
 from .base import Provider, ProviderError
 
 
@@ -30,6 +31,8 @@ class OpenAICompatProvider(Provider):
         self.model = model
         self.price_per_1k_cny = price_per_1k_cny
         self.timeout = timeout
+        # 自动判定是否出域：本地端点不算，公网端点算（C-32）
+        self.outbound = is_outbound_url(base_url)
 
     async def complete(self, request: LLMRequest) -> tuple[str, TokenUsage]:
         payload: dict[str, object] = {
