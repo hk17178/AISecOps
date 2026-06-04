@@ -42,7 +42,13 @@ from aisecops.L05_gateway.llm_gateway import (
     build_route_store,
     seed_default_routes,
 )
-from aisecops.L06_mcp_servers import build_notifier, build_tool_registry
+from aisecops.L06_mcp_servers import (
+    build_adapter_store,
+    build_notifier,
+    build_tool_registry,
+    seed_demo_adapters,
+    test_connectivity,
+)
 from aisecops.L07_secops_capabilities import (
     AlertTriageService,
     CorrelationService,
@@ -142,6 +148,11 @@ if not _iocs.all():
 # Prompt 治理（L04）：版本化编辑/回滚
 _prompts = build_prompt_store(_db_url)
 seed_demo_prompts(_prompts)
+
+# MCP 工具适配器（L06）：增删/启停/连通测试
+_adapters = build_adapter_store(_db_url)
+if not _adapters.all():
+    seed_demo_adapters(_adapters, _settings.es_hosts)
 
 
 def get_gateway() -> LLMGateway:
@@ -366,19 +377,74 @@ async def update_agent_config(name: str, body: AgentConfigIn) -> dict[str, Any]:
 
 @app.get("/api/tools")
 async def get_tools() -> dict[str, Any]:
-    tools: list[dict[str, Any]] = []
+    """适配器清单（增删/启停/测连）。ES 适配器额外标注是否真接入。"""
     ls = _registry.log_source
-    if ls is not None:
-        is_real = ls.name == "elasticsearch"
-        tools.append(
-            {
-                "name": "Elasticsearch",
-                "category": "data_sources",
-                "form": "薄适配器",
-                "status": "已接入" if is_real else "Stub（未配 ES 凭证，离线）",
-            }
-        )
-    return {"tools": tools, "note": "其余适配器（SIEM/EDR/通知）待接入"}
+    es_real = ls is not None and ls.name == "elasticsearch"
+    adapters = []
+    for a in _adapters.all():
+        d = a.model_dump()
+        if a.kind == "elasticsearch":
+            d["runtime"] = "已接入真 ES" if es_real else "Stub（未配凭证，离线）"
+        adapters.append(d)
+    return {
+        "adapters": adapters,
+        "categories": ["data_sources", "security_tools", "protocols", "vendors", "aiops", "custom"],
+        "outbound_enabled": _settings.allow_outbound,
+    }
+
+
+class AdapterIn(BaseModel):
+    name: str
+    category: str = "data_sources"
+    kind: str = ""
+    endpoint: str = ""
+    actor: str = "未知"
+
+
+class ToggleIn(BaseModel):
+    """通用启停入参（defined-before-use，避免 future-annotations 前向引用问题）。"""
+
+    enabled: bool
+    actor: str = "未知"
+
+
+@app.post("/api/tools")
+async def create_adapter(body: AdapterIn) -> dict[str, Any]:
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="适配器名不能为空")
+    a = _adapters.create(body.name.strip(), body.category, body.kind.strip(), body.endpoint.strip())
+    _ctx.audit.append(actor=body.actor, action="adapter_create", target=a.id, details={"name": a.name, "kind": a.kind})
+    return a.model_dump()
+
+
+@app.put("/api/tools/{adapter_id}")
+async def toggle_adapter(adapter_id: str, body: ToggleIn) -> dict[str, Any]:
+    a = _adapters.set_enabled(adapter_id, body.enabled)
+    if a is None:
+        raise HTTPException(status_code=404, detail=f"适配器 {adapter_id} 不存在")
+    _ctx.audit.append(actor=body.actor, action="adapter_toggle", target=adapter_id, details={"enabled": body.enabled})
+    return a.model_dump()
+
+
+@app.delete("/api/tools/{adapter_id}")
+async def delete_adapter(adapter_id: str, actor: str = "未知") -> dict[str, Any]:
+    removed = _adapters.remove(adapter_id)
+    if removed:
+        _ctx.audit.append(actor=actor, action="adapter_delete", target=adapter_id, details={})
+    return {"status": "deleted" if removed else "not_found", "id": adapter_id}
+
+
+@app.post("/api/tools/{adapter_id}/test")
+async def test_adapter(adapter_id: str, actor: str = "未知") -> dict[str, Any]:
+    """连通测试：真探一次（外网端点受出域开关约束）。"""
+    a = _adapters.get(adapter_id)
+    if a is None:
+        raise HTTPException(status_code=404, detail=f"适配器 {adapter_id} 不存在")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    status = test_connectivity(a, _settings.allow_outbound, now)
+    updated = _adapters.set_status(adapter_id, status, now)
+    _ctx.audit.append(actor=actor, action="adapter_test", target=adapter_id, details={"status": status})
+    return (updated or a).model_dump()
 
 
 @app.get("/api/cost")

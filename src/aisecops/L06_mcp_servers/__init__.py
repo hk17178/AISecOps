@@ -7,6 +7,15 @@ from __future__ import annotations
 
 from aisecops.L12_core_support.config import Settings, get_settings
 
+from .adapter_store import (
+    Adapter,
+    AdapterStore,
+    InMemoryAdapterStore,
+    PgAdapterStore,
+    build_adapter_store,
+    seed_demo_adapters,
+    test_connectivity,
+)
 from .data_sources.elasticsearch import ESLogSource, StubLogSource
 from .notifier import HttpNotifier, Notifier, StubNotifier, build_notifier
 from .registry import LogSource, ToolRegistry
@@ -21,6 +30,13 @@ __all__ = [
     "StubNotifier",
     "HttpNotifier",
     "build_notifier",
+    "Adapter",
+    "AdapterStore",
+    "InMemoryAdapterStore",
+    "PgAdapterStore",
+    "build_adapter_store",
+    "seed_demo_adapters",
+    "test_connectivity",
 ]
 
 

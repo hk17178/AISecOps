@@ -21,9 +21,9 @@ def test_agents_roster() -> None:
 def test_tools_registry() -> None:
     resp = client.get("/api/tools")
     assert resp.status_code == 200
-    tools = resp.json()["tools"]
-    # 默认无 ES 凭证 → 注册了 ES（stub）日志源
-    assert any("Elasticsearch" in t["name"] for t in tools)
+    adapters = resp.json()["adapters"]
+    # 默认 seed 了 ES 适配器
+    assert any("Elasticsearch" in a["name"] for a in adapters)
 
 
 def test_cost_summary() -> None:
