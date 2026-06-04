@@ -60,6 +60,13 @@ class TriageAgent(Agent):
                 log_text = "\n".join(str(log) for log in logs)
                 user_content += f"\n<related_logs>\n{log_text}\n</related_logs>"
 
+        # 活配置（改了即时生效）：阈值 / cross-check 模式；无 store 则用代码默认
+        from .agent_config import resolve_cross_check
+
+        cfg = ctx.config_for(self.role)
+        threshold = cfg.confidence_threshold if cfg else self.confidence_threshold
+        cross_check = resolve_cross_check(cfg.cross_check_mode, task.high_risk) if cfg else task.high_risk
+
         messages = [
             Message(role=Role.system, content=_SYSTEM),
             Message(role=Role.user, content=user_content),
@@ -68,16 +75,16 @@ class TriageAgent(Agent):
             messages,
             scenario="L07/alert_triage",
             response_model=TriageVerdict,
-            cross_check=task.high_risk,
+            cross_check=cross_check,
         )
         verdict: TriageVerdict = resp.parsed
 
         abstained = False
         note = ""
         # C-26：置信度低于阈值 → 不下结论，转人工
-        if verdict.confidence < self.confidence_threshold:
+        if verdict.confidence < threshold:
             abstained = True
-            note = f"置信度 {verdict.confidence:.2f} 低于阈值 {self.confidence_threshold:.2f}，转人工"
+            note = f"置信度 {verdict.confidence:.2f} 低于阈值 {threshold:.2f}，转人工"
         # C-27：高风险双模型研判不一致 → 转人工
         if resp.metadata.cross_checked and resp.metadata.cross_check_agreed is False:
             abstained = True

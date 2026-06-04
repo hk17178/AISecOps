@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict
 from aisecops.L02_agents import (
     AgentContext,
     TicketError,
+    build_agent_config_store,
     build_channel_store,
     build_dispatch_rule_store,
     build_playbook_store,
@@ -27,6 +28,7 @@ from aisecops.L02_agents import (
     mask_url,
     match_dispatch_rules,
     seed_demo_channels_rules,
+    seed_agent_configs,
     seed_demo_playbooks,
     seed_demo_tickets,
 )
@@ -84,7 +86,10 @@ _gateway = build_gateway()
 _default_provider = next((p.name for p in _gateway.providers if not p.is_stub), _gateway.providers[-1].name)
 _gateway.router = ScenarioRouter(_route_store.all(), default=_default_provider)
 _registry = build_tool_registry()
-_ctx = AgentContext(llm=_gateway, tools=_registry)
+# Agent 运行时配置（阈值/cross-check/启停，改了即时生效）；注入 ctx 供 agent 读
+_agent_configs = build_agent_config_store(_db_url)
+seed_agent_configs(_agent_configs)
+_ctx = AgentContext(llm=_gateway, tools=_registry, agent_configs=_agent_configs)
 
 # HITL 工单库；真威胁分诊会自动建单
 _tickets = build_ticket_store(_db_url)
@@ -189,6 +194,9 @@ async def llm_call(body: CallIn, gateway: LLMGateway = Depends(get_gateway)) -> 
 @app.post("/api/triage")
 async def triage(body: AlertIn, svc: AlertTriageService = Depends(get_triage_service)) -> dict[str, Any]:
     """端到端告警分诊：CMDB 资产富化 → Orchestrator → Triage（ES 富化 + LLM 研判）→ 结果。"""
+    cfg = _agent_configs.get("triage")
+    if cfg is not None and not cfg.enabled:
+        raise HTTPException(status_code=403, detail="Triage Agent 已停用（系统设置/AI Agent 可启用）")
     alert = body.model_dump()
     high_risk = bool(alert.pop("high_risk", False))
     # CMDB 富化：命中资产则把重要度/角色喂进研判；关键/高资产自动升级为高风险（双模型 cross-check）
@@ -300,9 +308,60 @@ _AGENT_ROSTER = [
 ]
 
 
+def _agent_model(scenario: str) -> str:
+    """该 Agent 当前路由到的 provider（场景→模型）。"""
+    if not scenario or _gateway.router is None:
+        return (_gateway.router.default or "") if _gateway.router else ""
+    return _gateway.router.provider_name_for(scenario) or (_gateway.router.default or "")
+
+
 @app.get("/api/agents")
 async def get_agents() -> dict[str, Any]:
-    return {"agents": _AGENT_ROSTER}
+    """Agent 名册 + 可编辑的运行时配置（已编码的 agent 才有 config）。"""
+    roster = []
+    for a in _AGENT_ROSTER:
+        item: dict[str, Any] = dict(a)
+        cfg = _agent_configs.get(a["name"].lower())
+        if cfg is not None:
+            item["config"] = {
+                **cfg.model_dump(),
+                "model": _agent_model(cfg.scenario),
+            }
+        roster.append(item)
+    providers = [p.name for p in _gateway.providers]
+    return {"agents": roster, "providers": providers, "cross_check_modes": ["auto", "on", "off"]}
+
+
+class AgentConfigIn(BaseModel):
+    """编辑 Agent 配置：启停/阈值/cross-check/模型/prompt key。"""
+
+    enabled: bool | None = None
+    confidence_threshold: float | None = None
+    cross_check_mode: str | None = None
+    prompt_key: str | None = None
+    model: str | None = None  # 改它=改该 agent 场景的模型路由
+    actor: str = "未知"
+
+
+@app.put("/api/agents/{name}")
+async def update_agent_config(name: str, body: AgentConfigIn) -> dict[str, Any]:
+    """改 Agent 配置（即时生效）。model 写进路由表（§4.4），其余写 agent_configs。"""
+    fields = body.model_dump(exclude_none=True)
+    actor = str(fields.pop("actor", "未知"))
+    model = fields.pop("model", None)
+    cfg = _agent_configs.update(name, fields)
+    if cfg is None:
+        raise HTTPException(status_code=404, detail=f"Agent {name} 无可编辑配置")
+    # 换模型 → 写该 agent 场景的路由（复用 §4.4，单一事实源）
+    if model is not None and cfg.scenario:
+        names = {p.name for p in _gateway.providers}
+        if model not in names:
+            raise HTTPException(status_code=400, detail=f"provider「{model}」不存在")
+        _route_store.set(cfg.scenario, model)
+        if _gateway.router is not None:
+            _gateway.router.set_route(cfg.scenario, model)
+    _ctx.audit.append(actor=actor, action="agent_config_update", target=name, details={**fields, "model": model})
+    return {**cfg.model_dump(), "model": _agent_model(cfg.scenario)}
 
 
 @app.get("/api/tools")
@@ -568,6 +627,9 @@ async def investigate(body: InvestigateIn, svc: InvestigationService = Depends(g
 @app.post("/api/correlate")
 async def correlate_alerts(svc: CorrelationService = Depends(get_corr_service)) -> dict[str, Any]:
     """关联分析：L08 把当前告警聚成候选事件簇 → 每簇 LLM 出攻击链结论（带引用 C-24）。"""
+    cfg = _agent_configs.get("correlation")
+    if cfg is not None and not cfg.enabled:
+        raise HTTPException(status_code=403, detail="Correlation Agent 已停用")
     alerts = _alerts.recent(200)
     results = await svc.correlate(alerts)
     return {"candidates": results, "count": len(results)}

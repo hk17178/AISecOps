@@ -3,6 +3,15 @@
 当前：Agent 基类 + Orchestrator + Triage Agent（Sprint 3 首切片）。
 """
 
+from .agent_config import (
+    AgentConfig,
+    AgentConfigStore,
+    InMemoryAgentConfigStore,
+    PgAgentConfigStore,
+    build_agent_config_store,
+    resolve_cross_check,
+    seed_agent_configs,
+)
 from .base import Agent, AgentContext, AgentResult, Task
 from .correlation import CorrelationAgent, CorrelationConclusion
 from .investigation import InvestigationAgent, InvestigationVerdict
@@ -62,6 +71,13 @@ __all__ = [
     "InvestigationVerdict",
     "CorrelationAgent",
     "CorrelationConclusion",
+    "AgentConfig",
+    "AgentConfigStore",
+    "InMemoryAgentConfigStore",
+    "PgAgentConfigStore",
+    "build_agent_config_store",
+    "seed_agent_configs",
+    "resolve_cross_check",
     "Playbook",
     "PlaybookRun",
     "PlaybookStore",

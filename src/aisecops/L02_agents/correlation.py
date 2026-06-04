@@ -78,17 +78,23 @@ class CorrelationAgent(Agent):
             Message(role=Role.system, content=_SYSTEM),
             Message(role=Role.user, content=f"<cluster>\n{cluster_text}\n</cluster>"),
         ]
+        from .agent_config import resolve_cross_check
+
+        cfg = ctx.config_for(self.role)
+        threshold = cfg.confidence_threshold if cfg else self.confidence_threshold
+        cross_check = resolve_cross_check(cfg.cross_check_mode, task.high_risk) if cfg else task.high_risk
+
         resp = await ctx.llm.call(
             messages,
             scenario="L08/correlation",
             response_model=CorrelationConclusion,
-            cross_check=task.high_risk,
+            cross_check=cross_check,
         )
         conclusion: CorrelationConclusion = resp.parsed
 
         abstained = False
         note = ""
-        if conclusion.confidence < self.confidence_threshold:
+        if conclusion.confidence < threshold:
             abstained = True
             note = f"置信度 {conclusion.confidence:.2f} 低于阈值，转人工确认"
         if resp.metadata.cross_checked and resp.metadata.cross_check_agreed is False:

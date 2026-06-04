@@ -16,6 +16,7 @@ from aisecops.L05_gateway.llm_gateway import LLMGateway
 from aisecops.L06_mcp_servers import ToolRegistry
 from aisecops.L12_core_support.audit import AuditLog
 
+from .agent_config import AgentConfig, AgentConfigStore
 from .memory import InMemoryMemoryStore, MemoryStore
 
 
@@ -45,6 +46,11 @@ class AgentContext:
     memory: MemoryStore = field(default_factory=InMemoryMemoryStore)
     audit: AuditLog = field(default_factory=AuditLog)
     tools: ToolRegistry = field(default_factory=ToolRegistry)  # L06 工具（默认空，无富化）
+    agent_configs: AgentConfigStore | None = None  # 运行时 Agent 配置（改了即时生效）
+
+    def config_for(self, role: str) -> AgentConfig | None:
+        """取某 Agent 的活配置（没接 store 则 None，用代码默认）。"""
+        return self.agent_configs.get(role) if self.agent_configs else None
 
 
 class Agent(ABC):

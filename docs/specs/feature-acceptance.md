@@ -118,8 +118,8 @@
 
 ### 4.1 AI Agent（L02）—— 受限，说清楚
 - **真实逻辑**：Agent 是**代码**（类 + prompt + 逻辑），**UI 不"凭空新建 agent"**。可操作的是 **Agent 配置**：启用/停用、置信度阈值、cross-check 开关、**为该 Agent 指定大模型**、编辑其 prompt。
-- **验收**：☐ 改阈值/换模型/启停 即时生效 ☐ prompt 可编辑并版本化。
-- **状态**：🟡 名册接真（实现/规划诚实）；配置编辑 未做。
+- **验收**：☑ 改阈值/换模型/启停 即时生效（`AgentConfigStore` 经 ctx 注入，agent 在 run() 里读活配置，见 `test_agent_config.py` 的 live-阈值用例）☑ prompt 可编辑并版本化（见 §4.3）。
+- **状态**：🟢 **已做**：L02 `AgentConfig`（启停/置信度阈值/cross-check 模式/prompt key，PG `agent_configs`）；TriageAgent/CorrelationAgent run() 读活配置→**改阈值/cross-check 立即影响下一次研判**；停用→对应 API 返回 403；**换模型写入 §4.4 路由表（单一事实源）**；`/api/agents` 暴露+编辑，写审计(C-23)；`AI Agent`页接真（启停/阈值/cross-check/模型/Prompt 链接）。🟡 待补：把 Prompt 治理库的活跃版本热加载进 agent（当前 agent 用代码内置 prompt + schema 约束，避免破坏 JSON 输出）。
 
 ### 4.2 MCP 工具（L06）
 - **真实逻辑**：适配器列表 + 增/删/启停 + **连通测试**。
