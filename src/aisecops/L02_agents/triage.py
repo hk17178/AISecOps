@@ -49,9 +49,20 @@ class TriageAgent(Agent):
 
     async def run(self, task: Task, ctx: AgentContext) -> AgentResult:
         alert_text = _format_alert(task.payload)
+        host = str(task.payload.get("host", "unknown"))
+
+        # L06 富化：查 ES 该主机最近日志，作为研判证据（ADR-0009 就地查询）
+        user_content = f"<alert>\n{alert_text}\n</alert>"
+        log_source = ctx.tools.log_source
+        if log_source is not None and host != "unknown":
+            logs = await log_source.search_logs(host=host, size=5)
+            if logs:
+                log_text = "\n".join(str(log) for log in logs)
+                user_content += f"\n<related_logs>\n{log_text}\n</related_logs>"
+
         messages = [
             Message(role=Role.system, content=_SYSTEM),
-            Message(role=Role.user, content=f"<alert>\n{alert_text}\n</alert>"),
+            Message(role=Role.user, content=user_content),
         ]
         resp = await ctx.llm.call(
             messages,
@@ -77,7 +88,6 @@ class TriageAgent(Agent):
             data["verdict"] = "待研判"
 
         # 写记忆（结构化状态）+ 审计（不可篡改）
-        host = str(task.payload.get("host", "unknown"))
         ctx.memory.put("triage_history", host, data)
         ctx.audit.append(
             actor="triage",

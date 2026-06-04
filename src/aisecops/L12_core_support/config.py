@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     monthly_budget_cny: float = 500.0
     allow_outbound: bool = False  # 出域开关（C-32，默认关）
 
+    # ---- 数据源 Elasticsearch（日志主存，ADR-0009）----
+    # 留空 es_api_key 且无用户名密码 → 用 StubLogSource（离线假日志）
+    es_hosts: str = "http://localhost:9200"
+    es_api_key: str = ""
+    es_username: str = ""
+    es_password: str = ""
+    es_index: str = "*"
+
+    # ---- 通知（首个=企业微信，ADR-0010）----
+    wechat_webhook: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
