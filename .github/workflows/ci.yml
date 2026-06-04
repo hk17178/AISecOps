@@ -25,17 +25,19 @@ jobs:
           python-version: "3.11"
           enable-cache: true
 
-      - name: Install deps (含 dev)
-        run: uv pip install --system -e ".[dev]"
+      - name: 建 venv + 装依赖（含 dev）
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
 
       - name: Ruff lint
-        run: ruff check .
+        run: uv run ruff check .
 
       - name: Ruff format check
-        run: ruff format --check .
+        run: uv run ruff format --check .
 
       - name: Mypy 类型检查
-        run: mypy src
+        run: uv run mypy src
 
       - name: Pytest（stub 模式，不烧 token）
-        run: pytest -q
+        run: uv run pytest -q
