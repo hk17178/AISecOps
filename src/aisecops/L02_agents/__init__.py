@@ -8,6 +8,20 @@ from .correlation import CorrelationAgent, CorrelationConclusion
 from .investigation import InvestigationAgent, InvestigationVerdict
 from .memory import InMemoryMemoryStore, MemoryStore
 from .orchestrator import Orchestrator, OrchestratorError
+from .soar import (
+    InMemoryPlaybookStore,
+    InMemoryRunStore,
+    PgPlaybookStore,
+    PgRunStore,
+    Playbook,
+    PlaybookRun,
+    PlaybookStore,
+    RunStore,
+    build_playbook_store,
+    build_run_store,
+    match_playbooks,
+    seed_demo_playbooks,
+)
 from .tickets import (
     InMemoryTicketStore,
     PgTicketStore,
@@ -34,6 +48,18 @@ __all__ = [
     "InvestigationVerdict",
     "CorrelationAgent",
     "CorrelationConclusion",
+    "Playbook",
+    "PlaybookRun",
+    "PlaybookStore",
+    "InMemoryPlaybookStore",
+    "PgPlaybookStore",
+    "RunStore",
+    "InMemoryRunStore",
+    "PgRunStore",
+    "build_playbook_store",
+    "build_run_store",
+    "match_playbooks",
+    "seed_demo_playbooks",
     "Ticket",
     "TicketStore",
     "InMemoryTicketStore",

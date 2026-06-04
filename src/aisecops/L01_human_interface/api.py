@@ -17,7 +17,10 @@ from pydantic import BaseModel, ConfigDict
 from aisecops.L02_agents import (
     AgentContext,
     TicketError,
+    build_playbook_store,
+    build_run_store,
     build_ticket_store,
+    seed_demo_playbooks,
     seed_demo_tickets,
 )
 from aisecops.L05_gateway.llm_gateway import (
@@ -89,6 +92,11 @@ _dedup = DedupEngine(_supp_rules)
 
 # 关联分析产物：安全事件库（关联簇人工确认后升级而来）
 _events = build_event_store(_db_url)
+
+# SOAR 处置剧本（L02 平台核心）：剧本库 + 执行记录；触发走 HITL 工单
+_playbooks = build_playbook_store(_db_url)
+seed_demo_playbooks(_playbooks)
+_runs = build_run_store(_db_url)
 
 
 def get_gateway() -> LLMGateway:
@@ -565,6 +573,20 @@ def _decide(ticket_id: str, status: str, audit_action: str, body: DecisionIn) ->
             "ticket_target": ticket.target,
         },
     )
+    # 若该工单由 SOAR 剧本触发：批准→执行动作，驳回→标记驳回（执行留痕）
+    run = _runs.find_by_ticket(ticket_id)
+    if run is not None and run.status == "待审":
+        if status == "已批准":
+            _runs.set_status(run.id, "已执行")  # 占位执行（真实经 L06 调外部工具）
+            _playbooks.bump_runs(run.playbook_id)
+            _ctx.audit.append(
+                actor=body.actor,
+                action="soar_execute",
+                target=run.id,
+                details={"playbook": run.playbook_name, "action": run.action, "target": run.target},
+            )
+        else:
+            _runs.set_status(run.id, "已驳回")
     return ticket.model_dump()
 
 
@@ -576,6 +598,118 @@ async def approve_ticket(ticket_id: str, body: DecisionIn) -> dict[str, Any]:
 @app.post("/api/tickets/{ticket_id}/reject")
 async def reject_ticket(ticket_id: str, body: DecisionIn) -> dict[str, Any]:
     return _decide(ticket_id, "已驳回", "ticket_reject", body)
+
+
+@app.get("/api/playbooks")
+async def get_playbooks() -> dict[str, Any]:
+    return {
+        "playbooks": [p.model_dump() for p in _playbooks.all()],
+        "action_kinds": ["封禁 IP", "隔离主机", "禁用账号"],
+    }
+
+
+class PlaybookIn(BaseModel):
+    """新建剧本。"""
+
+    name: str
+    actions: list[str] = []
+    risk: str = "高"
+    trigger_verdict: str = "真威胁"
+    trigger_severity: str = ""
+    trigger_keyword: str = ""
+    actor: str = "未知"
+
+
+@app.post("/api/playbooks")
+async def create_playbook(body: PlaybookIn) -> dict[str, Any]:
+    """新建处置剧本（写审计）。"""
+    if not body.name.strip() or not body.actions:
+        raise HTTPException(status_code=400, detail="剧本名与至少一个动作不能为空")
+    bad = [a for a in body.actions if a not in ("封禁 IP", "隔离主机", "禁用账号")]
+    if bad:
+        raise HTTPException(status_code=400, detail=f"不支持的动作：{bad}")
+    pb = _playbooks.create(
+        body.name.strip(), body.actions, body.risk, body.trigger_verdict, body.trigger_severity, body.trigger_keyword
+    )
+    _ctx.audit.append(actor=body.actor, action="playbook_create", target=pb.id, details={"name": pb.name})
+    return pb.model_dump()
+
+
+class PlaybookToggleIn(BaseModel):
+    enabled: bool
+    actor: str = "未知"
+
+
+@app.put("/api/playbooks/{playbook_id}")
+async def toggle_playbook(playbook_id: str, body: PlaybookToggleIn) -> dict[str, Any]:
+    pb = _playbooks.set_enabled(playbook_id, body.enabled)
+    if pb is None:
+        raise HTTPException(status_code=404, detail=f"剧本 {playbook_id} 不存在")
+    _ctx.audit.append(actor=body.actor, action="playbook_toggle", target=playbook_id, details={"enabled": body.enabled})
+    return pb.model_dump()
+
+
+@app.delete("/api/playbooks/{playbook_id}")
+async def delete_playbook(playbook_id: str, actor: str = "未知") -> dict[str, Any]:
+    removed = _playbooks.remove(playbook_id)
+    if removed:
+        _ctx.audit.append(actor=actor, action="playbook_delete", target=playbook_id, details={})
+    return {"status": "deleted" if removed else "not_found", "id": playbook_id}
+
+
+class SoarTriggerIn(BaseModel):
+    """手动触发剧本：对某条告警执行。"""
+
+    playbook_id: str
+    alert_id: str = ""
+    target: str = ""
+    actor: str = "未知"
+
+
+@app.post("/api/soar/trigger")
+async def soar_trigger(body: SoarTriggerIn) -> dict[str, Any]:
+    """触发剧本 → 建 HITL 工单（C-8，高风险必经人审）+ 记执行（待审）。"""
+    pb = _playbooks.get(body.playbook_id)
+    if pb is None:
+        raise HTTPException(status_code=404, detail=f"剧本 {body.playbook_id} 不存在")
+    if not pb.enabled:
+        raise HTTPException(status_code=400, detail="剧本已停用，无法触发")
+    # 目标：显式传入或从告警主机取
+    target = body.target.strip()
+    if not target and body.alert_id:
+        hit = next((a for a in _alerts.recent(500) if a.id == body.alert_id), None)
+        target = hit.host if hit else ""
+    target = target or "(未指定目标)"
+    action = "、".join(pb.actions)
+    ticket = _tickets.create(action=pb.actions[0], target=target, risk=pb.risk, source_alert=body.alert_id)
+    run = _runs.create(pb, target=target, action=action, ticket_id=ticket.id, alert_id=body.alert_id)
+    _ctx.audit.append(
+        actor=body.actor,
+        action="soar_trigger",
+        target=run.id,
+        details={"playbook": pb.name, "ticket": ticket.id, "action": action, "target": target},
+    )
+    return {"run": run.model_dump(), "ticket": ticket.model_dump()}
+
+
+@app.get("/api/soar/runs")
+async def get_runs() -> dict[str, Any]:
+    return {"runs": [r.model_dump() for r in _runs.all()]}
+
+
+@app.post("/api/soar/runs/{run_id}/undo")
+async def undo_run(run_id: str, actor: str = "未知") -> dict[str, Any]:
+    """撤销已执行的处置（标记可撤销，留痕）。"""
+    run = next((r for r in _runs.all() if r.id == run_id), None)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"执行 {run_id} 不存在")
+    if run.status != "已执行":
+        raise HTTPException(status_code=400, detail=f"仅「已执行」可撤销（当前 {run.status}）")
+    updated = _runs.set_status(run_id, "已撤销")
+    _ctx.audit.append(
+        actor=actor, action="soar_undo", target=run_id, details={"action": run.action, "target": run.target}
+    )
+    return (updated or run).model_dump()
 
 
 @app.get("/api/audit")
