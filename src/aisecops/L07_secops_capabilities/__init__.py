@@ -6,6 +6,7 @@
 from .alert_triage import AlertTriageService, build_alert_triage_service
 from .correlation import CorrelationService, build_correlation_service
 from .investigation import InvestigationService, build_investigation_service
+from .reporting import ReportingService, build_reporting_service
 
 __all__ = [
     "AlertTriageService",
@@ -14,4 +15,6 @@ __all__ = [
     "build_investigation_service",
     "CorrelationService",
     "build_correlation_service",
+    "ReportingService",
+    "build_reporting_service",
 ]
