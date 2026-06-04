@@ -101,7 +101,9 @@
 - 审计日志可查询
 - eval set ≥ 20 条样本
 
-### Sprint 4：L06 MCP + L07 alert_triage 端到端（2 周）
+### Sprint 4：L06 MCP + L07 alert_triage 端到端（2 周）· 🟢 后端完成（2026-06-04）
+
+> S4.1 脚手架 ✅ · S4.2/4.3 数据源适配 → 改为 **ES 适配器**（ADR-0010 只接 ES）✅ · S4.4 L07 alert_triage 端到端 ✅（`/api/triage` 实测跑通）。**S4.5 React 告警 UI ⏳**（随前端框架做）。37 测试绿。
 
 **目标**：M2 完成 —— 真告警进来能分诊。
 
