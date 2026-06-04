@@ -51,6 +51,8 @@ src/aisecops/L05_gateway/llm_gateway/
 
 ## 4. 构建顺序（每步：先写测试 → 再实现 → 跑绿）
 
+> **进度（2026-06-04）**：**S0–S6 ✅ 已实现 + 测试**（10 测试，make check + CI 全绿）。S7–S12 待续。
+
 | # | 步骤 | 先写的测试 | 满足铁律 |
 |---|---|---|---|
 | **S0** | 包骨架 + 加 deps（httpx/tenacity/pydantic） | `test_import` | — |

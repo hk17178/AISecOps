@@ -10,9 +10,9 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 
 ## 当前阶段
 
-🟡 **Sprint 1 基础设施（进行中）** —— 骨架完成；环境(uv+py3.11)、Docker compose、CI、Makefile、OTel 最小集成、重启手册已就位，`make check` 全绿。L12 可观测有首个可跑模块+测试。
-- ⏳ 待办：装 Docker 后跑通 `make dev`；5 条 PRD §9 待决策（跑哪/数据源/LLM/通知/CMDB）。
-- 🔜 **下一步 = S2 写 L05 LLM Gateway**，计划见 [docs/specs/L05-impl-plan.md](docs/specs/L05-impl-plan.md)。
+🟢 **Sprint 2 L05 LLM Gateway（进行中）** —— S1 基础设施就位；**L05 核心切片 S0–S6 已实现+测试**（契约/StubProvider/call可复现/metadata/budget/fallback），`make check` 全绿、CI 绿。
+- 🔜 **下一步 = L05 的 S7–S12**：出域脱敏/出域开关(C-32)、schema校验(C-21)、cross-check(C-27)、真 provider(S10，需先定 LLM)、成本看板、覆盖率。
+- ⏳ 仍欠：装 Docker 跑 `make dev`；4 条 PRD §9 待决策（跑哪/SIEM-EDR/LLM/通知）。日志=ES 8.x 已定（ADR-0009）。
 
 完整路线见 [dev-plan.md](docs/specs/dev-plan.md)。
 
