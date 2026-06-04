@@ -7,12 +7,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from aisecops.L05_gateway.llm_gateway import LLMGateway
+from aisecops.L12_core_support.audit import AuditLog
+
+from .memory import InMemoryMemoryStore, MemoryStore
 
 
 class Task(BaseModel):
@@ -35,9 +38,11 @@ class AgentResult(BaseModel):
 
 @dataclass
 class AgentContext:
-    """注入给 Agent 的依赖。后续扩展 memory / audit / mcp_registry。"""
+    """注入给 Agent 的依赖。后续扩展 mcp_registry。"""
 
     llm: LLMGateway
+    memory: MemoryStore = field(default_factory=InMemoryMemoryStore)
+    audit: AuditLog = field(default_factory=AuditLog)
 
 
 class Agent(ABC):

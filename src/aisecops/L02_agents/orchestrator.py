@@ -29,4 +29,5 @@ class Orchestrator:
     async def dispatch(self, task: Task) -> AgentResult:
         """把任务路由给对应 Agent 并执行。"""
         agent = self._route(task)
+        self.ctx.audit.append(actor="orchestrator", action="dispatch", target=task.kind)
         return await agent.run(task, self.ctx)

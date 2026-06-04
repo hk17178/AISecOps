@@ -75,4 +75,14 @@ class TriageAgent(Agent):
         data = verdict.model_dump()
         if abstained:
             data["verdict"] = "待研判"
+
+        # 写记忆（结构化状态）+ 审计（不可篡改）
+        host = str(task.payload.get("host", "unknown"))
+        ctx.memory.put("triage_history", host, data)
+        ctx.audit.append(
+            actor="triage",
+            action="verdict",
+            target=host,
+            details={"verdict": data["verdict"], "abstained": abstained},
+        )
         return AgentResult(agent=self.role, ok=True, data=data, abstained=abstained, note=note)
