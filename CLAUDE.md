@@ -10,9 +10,10 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 
 ## 当前阶段
 
-🟢 **Sprint 2 L05 LLM Gateway（进行中）** —— S1 基础设施就位；**L05 核心切片 S0–S6 已实现+测试**（契约/StubProvider/call可复现/metadata/budget/fallback），`make check` 全绿、CI 绿。
-- 🔜 **下一步 = L05 的 S7–S12**：出域脱敏/出域开关(C-32)、schema校验(C-21)、cross-check(C-27)、真 provider(S10，需先定 LLM)、成本看板、覆盖率。
-- ⏳ 仍欠：装 Docker 跑 `make dev`；4 条 PRD §9 待决策（跑哪/SIEM-EDR/LLM/通知）。日志=ES 8.x 已定（ADR-0009）。
+🟢 **Sprint 2 L05 LLM Gateway（进行中）** —— L05 S0–S6 + **S10 真 provider(OpenAI 兼容,API key)** 已实现；**L01 有可在浏览器打开的「L05 测试台」**（`make serve` → http://localhost:8000）。13 测试，`make check` 全绿、CI 绿。
+- ✅ 本地可跑可测：`make serve` 起服务，浏览器输入 prompt 调网关看响应+成本。无 key 走 stub；`.env` 配 `LLM_API_KEY` 即调真实 LLM。
+- 🔜 **下一步 = L05 的 S7–S9**：出域脱敏/出域开关(C-32)、schema校验(C-21)、cross-check(C-27)；之后 S11 成本看板 / S12 覆盖率。
+- ⏳ 仍欠：装 Docker 跑 `make dev`；3 条 PRD §9 待决策（跑哪/SIEM-EDR/通知）。日志=ES 8.x(ADR-0009)、LLM=API key 接入 已定。
 
 完整路线见 [dev-plan.md](docs/specs/dev-plan.md)。
 
