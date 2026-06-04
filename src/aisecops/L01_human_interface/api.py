@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
@@ -20,6 +20,7 @@ from aisecops.L07_secops_capabilities import (
     AlertTriageService,
     build_alert_triage_service,
 )
+from aisecops.L12_core_support.config import get_settings
 
 app = FastAPI(title="AISECOPS · L05 测试台", version="0.1.0")
 
@@ -72,6 +73,55 @@ async def triage(body: AlertIn, svc: AlertTriageService = Depends(get_triage_ser
     high_risk = bool(alert.pop("high_risk", False))
     result = await svc.triage(alert, high_risk=high_risk)
     return result.model_dump()
+
+
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+
+# 占位认证（真 RBAC 在 L02 平台核心做）。默认口令 aisecops。
+_ROLES = {"admin": "管理员", "analyst": "分析师"}
+
+
+@app.post("/api/login")
+async def login(body: LoginIn) -> dict[str, str]:
+    if not body.username or body.password != "aisecops":
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+    role = _ROLES.get(body.username, "普通查看")
+    return {"username": body.username, "role": role}
+
+
+# 配置覆盖（仅内存暂存；持久化到 DB + 密钥加密是 P-18 待做）
+_config_overrides: dict[str, Any] = {}
+
+
+class ConfigIn(BaseModel):
+    """系统设置入参（允许任意配置字段）。"""
+
+    model_config = ConfigDict(extra="allow")
+
+
+@app.get("/api/config")
+async def get_config() -> dict[str, Any]:
+    s = get_settings()
+    base: dict[str, Any] = {
+        "llm_base_url": s.llm_base_url,
+        "llm_model": s.llm_model,
+        "llm_api_key_set": bool(s.llm_api_key),
+        "monthly_budget_cny": s.monthly_budget_cny,
+        "allow_outbound": s.allow_outbound,
+        "es_hosts": s.es_hosts,
+        "wechat_webhook_set": bool(s.wechat_webhook),
+    }
+    base.update(_config_overrides)
+    return base
+
+
+@app.put("/api/config")
+async def put_config(body: ConfigIn) -> dict[str, str]:
+    _config_overrides.update(body.model_dump())
+    return {"status": "saved", "note": "已暂存（内存）；DB 持久化与密钥加密为 P-18 待做"}
 
 
 @app.get("/")
