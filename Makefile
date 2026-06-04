@@ -32,10 +32,13 @@ lint:  ## ruff 检查
 fmt:  ## ruff 自动格式化
 	$(BIN)/ruff format .
 
+fmt-check:  ## ruff 格式检查（不改文件，CI 用）
+	$(BIN)/ruff format --check .
+
 type:  ## mypy 类型检查
 	$(BIN)/mypy src
 
-check: lint type test  ## 一把过：lint + type + test（=CI 本地版）
+check: lint fmt-check type test  ## 一把过：lint + 格式 + type + test（与 CI 完全一致）
 
 clean:  ## 清 __pycache__ 缓存
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

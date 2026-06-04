@@ -54,11 +54,7 @@ def init_observability(
     # ---- Metrics ----
     readers = []
     if metric_console:
-        readers.append(
-            PeriodicExportingMetricReader(
-                ConsoleMetricExporter(), export_interval_millis=60_000
-            )
-        )
+        readers.append(PeriodicExportingMetricReader(ConsoleMetricExporter(), export_interval_millis=60_000))
     metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=readers))
 
     _initialized = True
