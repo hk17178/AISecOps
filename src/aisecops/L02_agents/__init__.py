@@ -6,6 +6,13 @@
 from .base import Agent, AgentContext, AgentResult, Task
 from .memory import InMemoryMemoryStore, MemoryStore
 from .orchestrator import Orchestrator, OrchestratorError
+from .tickets import (
+    InMemoryTicketStore,
+    Ticket,
+    TicketError,
+    TicketStore,
+    seed_demo_tickets,
+)
 from .triage import TriageAgent, TriageVerdict
 
 __all__ = [
@@ -19,4 +26,9 @@ __all__ = [
     "OrchestratorError",
     "TriageAgent",
     "TriageVerdict",
+    "Ticket",
+    "TicketStore",
+    "InMemoryTicketStore",
+    "TicketError",
+    "seed_demo_tickets",
 ]

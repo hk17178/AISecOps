@@ -1,32 +1,39 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Card, Pill, SectionTitle } from '../components/ui'
+import { apiGet, apiPost } from '../lib/api'
 
 type Ticket = {
   id: string
   action: string
   target: string
-  risk: '高' | '中'
-  status: '待审' | '已批准' | '已驳回'
+  risk: string
+  status: string
+  ts: string
 }
 
-const INITIAL: Ticket[] = [
-  { id: 'TKT-204', action: '隔离主机', target: 'WIN-APP-07', risk: '高', status: '待审' },
-  { id: 'TKT-203', action: '禁用账号', target: 'svc_backup', risk: '高', status: '待审' },
-  { id: 'TKT-201', action: '封禁 IP', target: '185.x.x.x', risk: '中', status: '待审' },
-]
-
 export default function Ticket() {
-  const [tickets, setTickets] = useState<Ticket[]>(INITIAL)
+  const [tickets, setTickets] = useState<Ticket[]>([])
 
-  function decide(id: string, status: '已批准' | '已驳回') {
-    setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, status } : t)))
+  const load = () =>
+    apiGet<{ tickets: Ticket[] }>('/api/tickets')
+      .then((d) => setTickets(d.tickets))
+      .catch(() => setTickets([]))
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function decide(id: string, kind: 'approve' | 'reject') {
+    await apiPost(`/api/tickets/${id}/${kind}`, {})
+    await load()
   }
+
+  const pending = tickets.filter((t) => t.status === '待审').length
 
   return (
     <div>
-      <div className="text-[13px] text-dim uppercase tracking-wide mb-3">
-        HITL 审批队列 · {tickets.filter((t) => t.status === '待审').length} 待处理
-      </div>
-      <div className="bg-paper border border-line rounded-[10px] p-5 lift">
+      <SectionTitle>HITL 审批队列 · {pending} 待处理 · 真工单库</SectionTitle>
+      <Card>
         <table className="w-full">
           <thead>
             <tr className="text-[12px] text-dim uppercase tracking-wide">
@@ -44,17 +51,21 @@ export default function Ticket() {
                 <td className="py-3">{t.action}</td>
                 <td className="py-3">{t.target}</td>
                 <td className="py-3">
-                  <span className={`text-[12px] border rounded-full px-2 ${t.risk === '高' ? 'text-terra border-terra' : 'text-ochre border-ochre'}`}>
-                    {t.risk}
-                  </span>
+                  <Pill tone={t.risk === '高' ? 't' : 'warn'}>{t.risk}</Pill>
                 </td>
                 <td className="py-3 text-right">
                   {t.status === '待审' ? (
                     <span className="flex gap-2 justify-end">
-                      <button onClick={() => decide(t.id, '已批准')} className="bg-terra text-paper rounded-lg px-3 py-1.5 text-[13px] hover:bg-[#9a4527]">
+                      <button
+                        onClick={() => decide(t.id, 'approve')}
+                        className="bg-terra text-paper rounded-lg px-3 py-1.5 text-[13px] hover:bg-[#9a4527]"
+                      >
                         批准
                       </button>
-                      <button onClick={() => decide(t.id, '已驳回')} className="border border-clay rounded-lg px-3 py-1.5 text-[13px] hover:bg-paper2">
+                      <button
+                        onClick={() => decide(t.id, 'reject')}
+                        className="border border-clay rounded-lg px-3 py-1.5 text-[13px] hover:bg-paper2"
+                      >
                         驳回
                       </button>
                     </span>
@@ -66,7 +77,7 @@ export default function Ticket() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   )
 }

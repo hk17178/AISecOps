@@ -14,7 +14,12 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
-from aisecops.L02_agents import AgentContext
+from aisecops.L02_agents import (
+    AgentContext,
+    InMemoryTicketStore,
+    TicketError,
+    seed_demo_tickets,
+)
 from aisecops.L05_gateway.llm_gateway import LLMGateway
 from aisecops.L05_gateway.llm_gateway.factory import build_gateway
 from aisecops.L06_mcp_servers import build_tool_registry
@@ -37,7 +42,11 @@ _STATIC = Path(__file__).parent / "static"
 _gateway = build_gateway()
 _registry = build_tool_registry()
 _ctx = AgentContext(llm=_gateway, tools=_registry)
-_triage_service = build_alert_triage_service(_ctx)
+
+# HITL 工单库（真 store + 演示种子）；真威胁分诊会自动建单
+_tickets = InMemoryTicketStore()
+seed_demo_tickets(_tickets)
+_triage_service = build_alert_triage_service(_ctx, _tickets)
 
 # 告警库（真 store + 演示种子；接 SIEM webhook 后真数据流入）
 _alerts = InMemoryAlertStore()
@@ -220,7 +229,29 @@ async def get_dashboard() -> dict[str, Any]:
     stats["spent_cny"] = round(budget.spent(), 4) if budget else 0.0
     stats["monthly_cap_cny"] = budget.monthly_cap_cny if budget else 0.0
     stats["triage_calls"] = len(_gateway.recorder.history)
+    stats["hitl_pending"] = _tickets.pending_count()
     return stats
+
+
+@app.get("/api/tickets")
+async def get_tickets() -> dict[str, Any]:
+    return {"tickets": [t.model_dump() for t in _tickets.all()]}
+
+
+@app.post("/api/tickets/{ticket_id}/approve")
+async def approve_ticket(ticket_id: str) -> dict[str, Any]:
+    try:
+        return _tickets.decide(ticket_id, "已批准").model_dump()
+    except TicketError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/tickets/{ticket_id}/reject")
+async def reject_ticket(ticket_id: str) -> dict[str, Any]:
+    try:
+        return _tickets.decide(ticket_id, "已驳回").model_dump()
+    except TicketError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/")
