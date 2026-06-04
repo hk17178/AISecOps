@@ -82,7 +82,9 @@
 - 月度成本仪表盘可见
 - 出域开关验证生效
 
-### Sprint 3：L02 Orchestrator + Triage Agent（2 周）
+### Sprint 3：L02 Orchestrator + Triage Agent（2 周）· ✅ 完成（2026-06-04）
+
+> S3.1 Agent基类+Orchestrator ✅ · S3.2 Triage+schema ✅ · S3.3 abstain ✅ · S3.4 cross-check ✅ · S3.5 Memory ✅ · S3.6 审计哈希链 ✅。31 测试，make check + CI 全绿。（eval set ≥20 待真接 LLM 后补）
 
 **目标**：第一个 Agent 跑起来。
 
