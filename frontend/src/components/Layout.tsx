@@ -62,7 +62,9 @@ export default function Layout() {
           </button>
         </header>
         <main className="p-10">
-          <Outlet />
+          <div key={loc.pathname} className="view-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
