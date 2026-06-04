@@ -12,8 +12,9 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 
 🟢 **Sprint 2 L05 LLM Gateway（进行中）** —— L05 S0–S6 + **S10 真 provider(OpenAI 兼容,API key)** 已实现；**L01 有可在浏览器打开的「L05 测试台」**（`make serve` → http://localhost:8000）。13 测试，`make check` 全绿、CI 绿。
 - ✅ 本地可跑可测：`make serve` 起服务，浏览器输入 prompt 调网关看响应+成本。无 key 走 stub；`.env` 配 `LLM_API_KEY` 即调真实 LLM。
-- 🔜 **下一步 = L05 的 S7–S9**：出域脱敏/出域开关(C-32)、schema校验(C-21)、cross-check(C-27)；之后 S11 成本看板 / S12 覆盖率。
-- ⏳ 仍欠：装 Docker 跑 `make dev`；3 条 PRD §9 待决策（跑哪/SIEM-EDR/通知）。日志=ES 8.x(ADR-0009)、LLM=API key 接入 已定。
+- ✅ **L05 核心全做完**：S0–S10 + 治理三件套 S7–S9（出域脱敏/开关 C-32、schema 校验 C-21、cross-check C-27）。20 测试绿。剩 S11 成本端点 / S12 覆盖率收尾（可选）。
+- 🔜 **下一步 = dev-plan Sprint 3：L02 Orchestrator + Triage Agent**（适合用 superpowers TDD，需重启会话加载）。
+- ⏳ 仍欠：装 Docker 跑 `make dev`；3 条 PRD §9 待决策（跑哪/SIEM-EDR/通知）。
 
 完整路线见 [dev-plan.md](docs/specs/dev-plan.md)。
 
