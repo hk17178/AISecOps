@@ -38,6 +38,5 @@ COPY pyproject.toml ./
 
 USER appuser
 
-# 入口占位：有了 FastAPI app 后改为
-#   CMD ["uvicorn", "aisecops.L01_human_interface.api:app", "--host", "0.0.0.0", "--port", "8000"]
-CMD ["python", "-c", "import aisecops; print('AISECOPS image OK —— 待接入 FastAPI 入口')"]
+EXPOSE 8000
+CMD ["uvicorn", "aisecops.L01_human_interface.api:app", "--host", "0.0.0.0", "--port", "8000"]

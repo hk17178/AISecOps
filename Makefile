@@ -23,6 +23,9 @@ down:  ## 停所有容器
 obs:  ## 额外起可观测栈（Prometheus / Grafana / OTel）
 	docker compose --profile obs up -d
 
+serve:  ## 起本地 Web（L05 测试台 → http://localhost:8000）
+	$(BIN)/uvicorn aisecops.L01_human_interface.api:app --reload --port 8000
+
 test:  ## 跑测试（stub 模式，不烧 token）
 	$(PY) -m pytest -q
 

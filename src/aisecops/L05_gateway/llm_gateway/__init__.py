@@ -10,6 +10,7 @@
 """
 
 from .budget import BudgetExceeded, BudgetTracker
+from .factory import build_gateway
 from .fallback import GatewayError, complete_with_fallback
 from .gateway import LLMGateway
 from .metadata import MetadataRecorder
@@ -22,10 +23,12 @@ from .models import (
     TokenUsage,
 )
 from .providers.base import Provider, ProviderError
+from .providers.openai_compat import OpenAICompatProvider
 from .providers.stub import StubProvider
 
 __all__ = [
     "LLMGateway",
+    "build_gateway",
     "BudgetTracker",
     "BudgetExceeded",
     "GatewayError",
@@ -34,6 +37,7 @@ __all__ = [
     "Provider",
     "ProviderError",
     "StubProvider",
+    "OpenAICompatProvider",
     "Message",
     "Role",
     "LLMRequest",
