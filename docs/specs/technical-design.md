@@ -100,20 +100,22 @@
 
 ### 3.4 数据层（PoC 只起 2 个有状态服务，见 O2 决策）
 
-> **PoC 起步只上 PG + Redis 两个有状态服务**，其余能用 PG 替代的先替代，撑不住再加。
-> 理由：自用 10-100 人、单人可维护，起步就上 6 个中间件违背"零运维 / 够用就行"。
+> **PoC 起步只上 PG + Redis 两个自有状态服务**；**原始日志用你们现有的 ES 8.x，就地查询、不自存**（见 [ADR-0009](../adr/0009-logs-in-elasticsearch-query-in-place.md)）。
+> 理由：自用 10-100 人、单人可维护；日志已在 ES，再囤一份违背"零运维 / 不重复造轮子"。
 
 | 组件 | PoC 起步 | 撑不住时升级 |
 |---|---|---|
-| 关系数据库 | **PostgreSQL 16**（docker 单实例） | — |
+| 关系数据库（自有衍生数据） | **PostgreSQL 16**（告警/研判/审计/Memory） | — |
 | 向量库 | **pgvector**（PG 扩展，免单独部署） | Milvus（数据量大/检索慢时） |
-| 时序 / 日志 | **先用 PG**（JSONB + 分区表够 PoC） | ClickHouse（EPS 撑不住时） |
+| **原始日志** | **外部 ES 8.x · 就地查询**（经 L06 `elasticsearch` 薄适配器，不抽取入库） | —（不自建日志存储） |
+| 日志检索 / 全文 | **走 ES**；平台自身少量全文用 PG | — |
 | 消息中间件 | **Redis Streams** | Kafka（吞吐 > 1K EPS 时） |
 | 对象存储 | **本地文件系统**（报告/归档） | MinIO（多节点时） |
-| 全文检索 | PG 全文索引 | — |
 | 流处理 | Python 批处理 | — |
 
-> **PoC 起步全不上**：ClickHouse / Milvus / MinIO / Kafka / OpenSearch / Flink，等真撑不住再按上表升级。
+> **PoC 起步全不上**：ClickHouse / Milvus / MinIO / Kafka / OpenSearch / Flink。
+> **ClickHouse 已退出 V1 计划**（原"日志撑不住上 ClickHouse"作废，日志归 ES）；仅将来确需自有大规模衍生分析数据时再评估，另写 ADR。
+> **ES 客户端用 `elasticsearch-py` 8.x**（对齐服务端大版本；非 OpenSearch，别用 opensearch-py）。
 
 ### 3.5 L05 LLM Gateway 设计
 
@@ -224,14 +226,15 @@ class Agent(ABC):
                                     ↓
                             Redis Streams: alerts.raw
                                     ↓
-                  L09 Python 批处理：归一化 + 入 ClickHouse
+                  L09 Python 批处理：归一化 + 入 PG
+                  （仅存告警/研判，原始日志留在 ES 不复制）
                                     ↓
               定时扫描 / 实时触发 → L08 关联分析
                                     ↓
                        高风险 → L02 Triage Agent
                        ├─ L03 RAG 查相似历史
                        ├─ L04 LLM 经 L05 Gateway
-                       └─ L06 MCP 富化（IP / IoC / CMDB）
+                       └─ L06 适配器富化：ES 查原始日志 / IP / IoC / CMDB
                                     ↓
                          结构化结果落 ClickHouse
                                     ↓

@@ -47,3 +47,4 @@
 | [0006](0006-agent-orchestration-inhouse.md) | Agent 编排自研（不引 LangGraph） | Accepted |
 | [0007](0007-messaging-redis-streams.md) | 数据中间件起步用 Redis Streams | Accepted |
 | [0008](0008-cross-layer-dependency-dag.md) | 跨层规则改用显式依赖 DAG，L02/L07 为编排层（细化 C-13） | Accepted |
+| [0009](0009-logs-in-elasticsearch-query-in-place.md) | 日志主存用现有 ES 8.x，就地查询，平台不自存原始日志 | Accepted |

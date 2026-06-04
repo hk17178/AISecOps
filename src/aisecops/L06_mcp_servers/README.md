@@ -26,7 +26,8 @@ L06 对外只暴露一个**统一工具注册表接口**，L02 Agent 只认这�
   - NDR / XDR
   - 漏洞扫描（Nessus / 绿盟 RSAS）
   - 蜜罐 / WAF / IDS
-- **data_sources/** —— 数据源 MCP（DB / OSS / Kafka / ES）
+- **data_sources/** —— 数据源适配（DB / OSS / Kafka / ES）
+  - ⭐ **elasticsearch/** —— **P0/P1 优先**：用户日志主存在 ES 8.x，就地查询、不抽取入库（见 [ADR-0009](../../../docs/adr/0009-logs-in-elasticsearch-query-in-place.md)）。薄适配器 + `elasticsearch-py` 8.x，调查/富化的主取数通道。
 - **protocols/** —— 通讯协议 MCP（SSH / WinRM / SNMP / Syslog）
 - **vendors/** —— 各厂商专有 API MCP
 - **aiops/** —— AIOps 系列 MCP（Prometheus / Zabbix / Grafana）
