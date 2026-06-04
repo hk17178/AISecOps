@@ -52,13 +52,20 @@ async def test_triage_no_ticket_when_abstain() -> None:
 client = TestClient(app)
 
 
-def test_ticket_endpoints() -> None:
+def test_ticket_endpoints_with_reason_and_audit() -> None:
     tickets = client.get("/api/tickets").json()["tickets"]
     pending = [t for t in tickets if t["status"] == "待审"]
     assert len(pending) >= 1
     tid = pending[0]["id"]
-    r = client.post(f"/api/tickets/{tid}/approve")
+    r = client.post(f"/api/tickets/{tid}/approve", json={"reason": "确认属实", "actor": "admin"})
     assert r.status_code == 200
-    assert r.json()["status"] == "已批准"
+    body = r.json()
+    assert body["status"] == "已批准"
+    assert body["reason"] == "确认属实"
+    assert body["decided_by"] == "admin"
+    # 审计链记录了这次决策且校验通过（C-23）
+    audit = client.get("/api/audit").json()
+    assert audit["verified"] is True
+    assert any(e["target"] == tid and e["action"] == "ticket_approve" for e in audit["entries"])
     # 重复审批被拒
-    assert client.post(f"/api/tickets/{tid}/approve").status_code == 400
+    assert client.post(f"/api/tickets/{tid}/approve", json={"reason": "x", "actor": "admin"}).status_code == 400

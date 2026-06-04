@@ -258,20 +258,50 @@ async def get_tickets() -> dict[str, Any]:
     return {"tickets": [t.model_dump() for t in _tickets.all()]}
 
 
-@app.post("/api/tickets/{ticket_id}/approve")
-async def approve_ticket(ticket_id: str) -> dict[str, Any]:
+class DecisionIn(BaseModel):
+    """HITL 审批入参：理由 + 操作人。"""
+
+    reason: str = ""
+    actor: str = "未知"
+
+
+def _decide(ticket_id: str, status: str, audit_action: str, body: DecisionIn) -> dict[str, Any]:
     try:
-        return _tickets.decide(ticket_id, "已批准").model_dump()
+        ticket = _tickets.decide(ticket_id, status, body.reason, body.actor)
     except TicketError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # C-23：HITL 决策写入不可篡改审计链（谁、为什么）
+    _ctx.audit.append(
+        actor=body.actor,
+        action=audit_action,
+        target=ticket_id,
+        details={
+            "reason": body.reason,
+            "ticket_action": ticket.action,
+            "ticket_target": ticket.target,
+        },
+    )
+    return ticket.model_dump()
+
+
+@app.post("/api/tickets/{ticket_id}/approve")
+async def approve_ticket(ticket_id: str, body: DecisionIn) -> dict[str, Any]:
+    return _decide(ticket_id, "已批准", "ticket_approve", body)
 
 
 @app.post("/api/tickets/{ticket_id}/reject")
-async def reject_ticket(ticket_id: str) -> dict[str, Any]:
-    try:
-        return _tickets.decide(ticket_id, "已驳回").model_dump()
-    except TicketError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+async def reject_ticket(ticket_id: str, body: DecisionIn) -> dict[str, Any]:
+    return _decide(ticket_id, "已驳回", "ticket_reject", body)
+
+
+@app.get("/api/audit")
+async def get_audit() -> dict[str, Any]:
+    """审计链（C-23）：最近记录 + 链完整性校验。"""
+    entries = list(reversed(_ctx.audit.entries))[:50]
+    return {
+        "entries": [e.model_dump() for e in entries],
+        "verified": _ctx.audit.verify(),
+    }
 
 
 @app.get("/")

@@ -23,6 +23,10 @@ class Ticket(BaseModel):
     status: str = "待审"  # 待审 / 已批准 / 已驳回
     source_alert: str = ""
     ts: str
+    # 审批留痕：谁、什么时候、为什么
+    reason: str = ""
+    decided_by: str = ""
+    decided_at: str = ""
 
 
 class TicketError(Exception):
@@ -39,8 +43,8 @@ class TicketStore(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def decide(self, ticket_id: str, status: str) -> Ticket:
-        """审批：仅"待审"可改为"已批准/已驳回"。"""
+    def decide(self, ticket_id: str, status: str, reason: str = "", actor: str = "") -> Ticket:
+        """审批：仅"待审"可改为"已批准/已驳回"，并记录理由与操作人。"""
         raise NotImplementedError
 
     @abstractmethod
@@ -73,12 +77,15 @@ class InMemoryTicketStore(TicketStore):
     def all(self) -> list[Ticket]:
         return list(reversed(self._tickets))
 
-    def decide(self, ticket_id: str, status: str) -> Ticket:
+    def decide(self, ticket_id: str, status: str, reason: str = "", actor: str = "") -> Ticket:
         for t in self._tickets:
             if t.id == ticket_id:
                 if t.status != "待审":
                     raise TicketError(f"工单 {ticket_id} 已处理（{t.status}）")
                 t.status = status
+                t.reason = reason
+                t.decided_by = actor
+                t.decided_at = self._clock().strftime("%Y-%m-%d %H:%M:%S")
                 return t
         raise TicketError(f"工单 {ticket_id} 不存在")
 
