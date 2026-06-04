@@ -62,6 +62,7 @@ from aisecops.L09_data_platform.alert_store import (
 from aisecops.L09_data_platform.event_store import build_event_store
 from aisecops.L09_data_platform.report_store import build_report_store
 from aisecops.L10_data_collection.ingest import normalize_alert
+from aisecops.L11_target_estate import build_asset_store, seed_demo_assets
 from aisecops.L12_core_support.config import get_settings
 
 app = FastAPI(title="AISECOPS · L05 测试台", version="0.1.0")
@@ -119,6 +120,11 @@ _notifier = build_notifier(_settings.allow_outbound)
 _reports = build_report_store(_db_url)
 _reporting = build_reporting_service(_gateway)
 
+# 资产 CMDB（L11）：手填资产，分诊富化引用重要度
+_assets = build_asset_store(_db_url)
+if not _assets.all():
+    seed_demo_assets(_assets)
+
 
 def get_gateway() -> LLMGateway:
     """可被测试覆盖的网关依赖。"""
@@ -169,9 +175,16 @@ async def llm_call(body: CallIn, gateway: LLMGateway = Depends(get_gateway)) -> 
 
 @app.post("/api/triage")
 async def triage(body: AlertIn, svc: AlertTriageService = Depends(get_triage_service)) -> dict[str, Any]:
-    """端到端告警分诊：Orchestrator → Triage（ES 富化 + LLM 研判）→ 结果。"""
+    """端到端告警分诊：CMDB 资产富化 → Orchestrator → Triage（ES 富化 + LLM 研判）→ 结果。"""
     alert = body.model_dump()
     high_risk = bool(alert.pop("high_risk", False))
+    # CMDB 富化：命中资产则把重要度/角色喂进研判；关键/高资产自动升级为高风险（双模型 cross-check）
+    asset = _assets.get_by_host(str(alert.get("host", "")))
+    if asset is not None:
+        alert["asset_importance"] = asset.importance
+        alert["asset_role"] = asset.role
+        if asset.importance in ("关键", "高"):
+            high_risk = True
     result = await svc.triage(alert, high_risk=high_risk)
     return result.model_dump()
 
@@ -980,6 +993,70 @@ async def export_report(report_id: str) -> Response:
         media_type="text/markdown; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.get("/api/assets")
+async def get_assets() -> dict[str, Any]:
+    return {
+        "assets": [a.model_dump() for a in _assets.all()],
+        "importance_options": ["关键", "高", "中", "低"],
+        "status_options": ["正常", "观察", "已隔离", "下线"],
+    }
+
+
+class AssetIn(BaseModel):
+    host: str
+    ip: str = ""
+    role: str = ""
+    importance: str = "中"
+    status: str = "正常"
+    owner: str = ""
+    note: str = ""
+    actor: str = "未知"
+
+
+@app.post("/api/assets")
+async def create_asset(body: AssetIn) -> dict[str, Any]:
+    if not body.host.strip():
+        raise HTTPException(status_code=400, detail="主机名不能为空")
+    a = _assets.create(
+        body.host.strip(),
+        body.ip.strip(),
+        body.role.strip(),
+        body.importance,
+        body.status,
+        body.owner.strip(),
+        body.note.strip(),
+    )
+    _ctx.audit.append(
+        actor=body.actor, action="asset_create", target=a.id, details={"host": a.host, "importance": a.importance}
+    )
+    return a.model_dump()
+
+
+class AssetUpdateIn(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    actor: str = "未知"
+
+
+@app.put("/api/assets/{asset_id}")
+async def update_asset(asset_id: str, body: AssetUpdateIn) -> dict[str, Any]:
+    fields = body.model_dump()
+    actor = str(fields.pop("actor", "未知"))
+    a = _assets.update(asset_id, fields)
+    if a is None:
+        raise HTTPException(status_code=404, detail=f"资产 {asset_id} 不存在")
+    _ctx.audit.append(actor=actor, action="asset_update", target=asset_id, details={"fields": list(fields.keys())})
+    return a.model_dump()
+
+
+@app.delete("/api/assets/{asset_id}")
+async def delete_asset(asset_id: str, actor: str = "未知") -> dict[str, Any]:
+    removed = _assets.remove(asset_id)
+    if removed:
+        _ctx.audit.append(actor=actor, action="asset_delete", target=asset_id, details={})
+    return {"status": "deleted" if removed else "not_found", "id": asset_id}
 
 
 @app.get("/api/audit")
