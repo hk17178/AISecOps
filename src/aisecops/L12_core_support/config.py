@@ -2,6 +2,10 @@
 
 所有密码 / API Key 走环境变量或 .env，不写进代码。
 跨层定位（ADR-0008）：L12 横切支撑，任何层可读配置。
+
+⚠️ 临时形态：`.env` 仅作"首次引导/开发用"。按 [PRINCIPLES P-18] 配置应走 Web
+（系统设置页）管理 + 存 DB + 密钥加密，随 L01/L02 落地后这里改为"DB 优先、.env 兜底"。
+读取入口 get_settings() 保持稳定，届时换数据源不影响调用方。
 """
 
 from __future__ import annotations
