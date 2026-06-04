@@ -48,3 +48,4 @@
 | [0007](0007-messaging-redis-streams.md) | 数据中间件起步用 Redis Streams | Accepted |
 | [0008](0008-cross-layer-dependency-dag.md) | 跨层规则改用显式依赖 DAG，L02/L07 为编排层（细化 C-13） | Accepted |
 | [0009](0009-logs-in-elasticsearch-query-in-place.md) | 日志主存用现有 ES 8.x，就地查询，平台不自存原始日志 | Accepted |
+| [0010](0010-p0-env-decisions-colima.md) | P0 环境决策落定（本机PoC/只接ES/企微/不接CMDB）+ Docker 用 Colima | Accepted |

@@ -253,10 +253,10 @@
 
 ## 9. 待决策事项
 
-- [ ] **跑在哪儿**：自建机房 / 公司云服务器 / 你的笔记本（PoC 阶段） → 影响 compatibility
-- [ ] **接什么数据源**：你们现用的是哪个 SIEM / EDR / 防火墙 → 影响 P0 MCP 选哪个
-- [ ] **LLM 选哪个**：豆包 / 通义 / Claude / 自部署 Qwen → 影响 L05 Gateway 第一个 provider
-- [ ] **通知用什么**：企微 / 钉钉 / 邮件 / Slack → 影响 L02 通知中枢
-- [ ] **CMDB 现状**：已有 Excel / Wiki / 专门系统？ → 影响 L11 怎么建
+> ✅ **已全部落定**，见 [ADR-0010](../adr/0010-p0-env-decisions-colima.md)（环境）+ [ADR-0009](../adr/0009-logs-in-elasticsearch-query-in-place.md)（日志）。
 
-> 这些等开始 Sprint 1 时再决，先把架构和约束跑通。
+- [x] **跑在哪儿** → **本机 Mac PoC 先跑**（单机 docker-compose，Colima 运行时）
+- [x] **接什么数据源** → **暂只接 ES 8.x**（L06 P0 只做 ES 适配器）
+- [x] **LLM 选哪个** → **API key 接入**（OpenAI 兼容 provider）
+- [x] **通知用什么** → **企业微信**（首个，机器人 webhook）
+- [x] **CMDB 现状** → **暂不接**（L11 先留空 / 手填）

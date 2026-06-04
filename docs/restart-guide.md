@@ -21,12 +21,15 @@ make install     # 装依赖（含 dev）
 # 3. 自检：一把过 lint + type + test
 make check       # 全绿 = 环境 OK
 
-# 4.（可选，需 Docker Desktop）起数据层
-make dev         # PG + Redis
+# 4. 起数据层（Docker 运行时用 Colima，见 ADR-0010）
+colima start     # 起 Docker daemon（首次下载 VM 镜像）
+make dev         # PG(pgvector) + Redis
 make obs         # 额外起 Prometheus/Grafana/OTel（http://localhost:3000）
+colima stop      # 不用时停
 ```
 
-> ⚠️ **当前未装 Docker**。`make check` 不需要 Docker（纯 Python + stub）。只有 `make dev/obs` 要 Docker Desktop。
+> ⚠️ **Docker = Colima**（非 Docker Desktop）。`make check` 不需要 Docker（纯 Python + stub）；只有 `make dev/obs` 要先 `colima start`。
+> 首次装：`brew install colima docker docker-compose` + 链 compose 插件 + 删 `~/.docker/config.json` 的 `credsStore`（详见 ADR-0010）。
 > ⚠️ **凭证**：`cp .env.example .env` 后填真实密码/Key。`.env` 已 gitignore，**绝不入库**。
 
 ## 常用命令（`make` 看全部）

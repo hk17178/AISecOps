@@ -15,7 +15,7 @@ AISECOPS 是**自建自用**的 AI 驱动安全运营工具，给你/你们小�
 - ✅ **L05 核心全做完**（S0–S10 + 治理三件套 S7–S9）。
 - ✅ **Sprint 3 完成**：Orchestrator(路由) + Triage Agent（结构化研判 C-21 / 防注入 C-20 / abstain C-26 / cross-check C-27）+ Memory Store + 审计哈希链(C-23)。31 测试绿。
 - 🔜 **下一步 = Sprint 4**：L06 ES 适配器 + L07 alert_triage **端到端**（Orchestrator→Triage→ES 富化→出研判）+ L01 前端框架（含系统设置页，配置走 Web P-18）。
-- ⏳ 仍欠：装 Docker 跑 `make dev`；3 条 PRD §9 待决策（跑哪/SIEM-EDR/通知）。
+- ✅ **环境补全**：Docker(Colima) 已装，`make dev` 起 PG+Redis 验证通过；PRD §9 全部决策落定（本机PoC/只接ES/企微/不接CMDB，ADR-0010）。
 
 完整路线见 [dev-plan.md](docs/specs/dev-plan.md)。
 
