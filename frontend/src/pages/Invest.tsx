@@ -1,35 +1,85 @@
-const TIMELINE = [
-  { t: '09:31', e: 'DEV-12 连接 C2 域名', src: '防火墙' },
-  { t: '09:38', e: 'admin 账号异常登录成功', src: 'SIEM' },
-  { t: '09:42', e: 'WIN-APP-07 横向移动至 6 台主机', src: 'EDR' },
-  { t: '09:44', e: '尝试访问域控 DC-01', src: 'EDR' },
-]
+import { useState } from 'react'
+import { Card, SectionTitle, btnPrimary } from '../components/ui'
+import { apiPost } from '../lib/api'
+
+type TimelineItem = { time: string; event: string; source: string }
+type InvestResult = {
+  agent: string
+  ok: boolean
+  data: {
+    summary: string
+    attack_chain: string
+    confidence: number
+    timeline: TimelineItem[]
+    log_count: number
+  }
+  abstained: boolean
+  note: string
+}
+
+const inputCls = 'w-full border border-line rounded-lg bg-bg px-3 py-2.5 outline-none focus:border-clay'
 
 export default function Invest() {
+  const [host, setHost] = useState('WIN-APP-07')
+  const [question, setQuestion] = useState('这次入侵的攻击链是什么？')
+  const [r, setR] = useState<InvestResult | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function run() {
+    setLoading(true)
+    setR(null)
+    try {
+      setR(await apiPost<InvestResult>('/api/investigate', { host, question }))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="grid grid-cols-[1.7fr_1fr] gap-[34px]">
-      <div className="bg-paper border border-line rounded-[10px] p-5 lift">
-        <div className="text-[13px] text-dim uppercase tracking-wide mb-3">攻击时间线 · INC-2026-0042</div>
-        {TIMELINE.map((row, i) => (
-          <div key={i} className="flex gap-3 py-3 border-b border-dotted border-line fade-up" style={{ animationDelay: `${i * 80}ms` }}>
-            <span className="text-terra font-semibold w-12">{row.t}</span>
-            <div>
-              <div>{row.e}</div>
-              <div className="text-dim text-[12px] mt-0.5">{row.src}</div>
+      <Card>
+        <SectionTitle>攻击时间线{r ? ` · ${r.data.log_count} 条日志（来自 ES）` : ''}</SectionTitle>
+        {!r && <div className="text-dim">（在右侧填主机/问题，点"开始调查"）</div>}
+        {r && r.data.timeline.length === 0 && <div className="text-dim">无相关日志</div>}
+        {r &&
+          r.data.timeline.map((t, i) => (
+            <div key={i} className="flex gap-3 py-3 border-b border-dotted border-line fade-up" style={{ animationDelay: `${i * 80}ms` }}>
+              <span className="text-terra font-semibold w-16">{t.time}</span>
+              <div>
+                <div>{t.event}</div>
+                <div className="text-dim text-[12px] mt-0.5">{t.source}</div>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-      <div className="bg-paper border border-line rounded-[10px] p-5 lift">
-        <div className="text-[13px] text-dim uppercase tracking-wide mb-3">向 AI 提问取证</div>
-        <div className="bg-[#e7dcc6] rounded-xl px-4 py-3 text-[14px] mb-3 ml-auto max-w-[85%]">
-          这次入侵的攻击链是什么？
-        </div>
-        <div className="bg-paper2 border border-line rounded-xl px-4 py-3 text-[14px]">
-          初判为 <b>凭证窃取 → 横向移动</b>：C2 回连(09:31) → 异常登录(09:38) → PsExec 横移(09:42)，目标域控。涉及 6 台主机，建议优先隔离 WIN-APP-07。
-          <div className="text-dim text-[12px] mt-2">引用 3 条证据 · 置信度 0.86</div>
-        </div>
-        <div className="text-dim text-[12px] mt-3">（接 L02 Investigation Agent，当前为示意）</div>
+          ))}
+      </Card>
+
+      <div>
+        <Card className="mb-5">
+          <SectionTitle>调查</SectionTitle>
+          <label className="block text-[13px] text-dim mb-1.5">主机</label>
+          <input value={host} onChange={(e) => setHost(e.target.value)} className={`${inputCls} mb-3`} />
+          <label className="block text-[13px] text-dim mb-1.5">问题</label>
+          <textarea value={question} onChange={(e) => setQuestion(e.target.value)} className={`${inputCls} mb-3 min-h-[70px]`} />
+          <button onClick={run} disabled={loading} className={btnPrimary}>
+            {loading ? '调查中…' : '开始调查'}
+          </button>
+        </Card>
+        <Card>
+          <SectionTitle>调查结论</SectionTitle>
+          {!r && <div className="text-dim">—</div>}
+          {r && (
+            <div>
+              <div className="text-[14px] mb-2">{r.data.summary || '（无模型 / 证据不足，需人工）'}</div>
+              {r.data.attack_chain && (
+                <div className="text-[13px] text-dim mb-2">攻击链：{r.data.attack_chain}</div>
+              )}
+              <div className="text-dim text-[12px]">
+                置信度 {r.data.confidence.toFixed(2)} · {r.abstained ? '转人工' : '已研判'}
+              </div>
+              {r.note && <div className="text-ochre text-[13px] mt-2">{r.note}</div>}
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   )

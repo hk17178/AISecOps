@@ -25,7 +25,9 @@ from aisecops.L05_gateway.llm_gateway.factory import build_gateway
 from aisecops.L06_mcp_servers import build_tool_registry
 from aisecops.L07_secops_capabilities import (
     AlertTriageService,
+    InvestigationService,
     build_alert_triage_service,
+    build_investigation_service,
 )
 from aisecops.L09_data_platform.alert_store import (
     InMemoryAlertStore,
@@ -47,6 +49,7 @@ _ctx = AgentContext(llm=_gateway, tools=_registry)
 _tickets = InMemoryTicketStore()
 seed_demo_tickets(_tickets)
 _triage_service = build_alert_triage_service(_ctx, _tickets)
+_invest_service = build_investigation_service(_ctx)
 
 # 告警库（真 store + 演示种子；接 SIEM webhook 后真数据流入）
 _alerts = InMemoryAlertStore()
@@ -61,6 +64,11 @@ def get_gateway() -> LLMGateway:
 def get_triage_service() -> AlertTriageService:
     """可被测试覆盖的分诊服务依赖。"""
     return _triage_service
+
+
+def get_invest_service() -> InvestigationService:
+    """可被测试覆盖的调查服务依赖。"""
+    return _invest_service
 
 
 class CallIn(BaseModel):
@@ -152,7 +160,7 @@ async def put_config(body: ConfigIn) -> dict[str, str]:
 _AGENT_ROSTER = [
     {"name": "Orchestrator", "status": "实现", "desc": "统一调度，禁省略（C-5）"},
     {"name": "Triage", "status": "实现", "desc": "告警分诊：结构化研判 + abstain + cross-check"},
-    {"name": "Investigation", "status": "规划", "desc": "事件取证 + 时间线"},
+    {"name": "Investigation", "status": "实现", "desc": "事件取证：ES 日志建时间线 + LLM 攻击链"},
     {"name": "Enrichment", "status": "规划", "desc": "上下文富化"},
     {"name": "Responder", "status": "规划", "desc": "处置执行，经 HITL"},
     {"name": "Reporter", "status": "规划", "desc": "报告生成"},
@@ -231,6 +239,18 @@ async def get_dashboard() -> dict[str, Any]:
     stats["triage_calls"] = len(_gateway.recorder.history)
     stats["hitl_pending"] = _tickets.pending_count()
     return stats
+
+
+class InvestigateIn(BaseModel):
+    host: str = ""
+    question: str = ""
+
+
+@app.post("/api/investigate")
+async def investigate(body: InvestigateIn, svc: InvestigationService = Depends(get_invest_service)) -> dict[str, Any]:
+    """事件调查：查 ES 日志建时间线 + LLM 推断攻击链。"""
+    result = await svc.investigate(body.host, body.question)
+    return result.model_dump()
 
 
 @app.get("/api/tickets")
