@@ -11,10 +11,11 @@ def test_agents_roster() -> None:
     resp = client.get("/api/agents")
     assert resp.status_code == 200
     agents = resp.json()["agents"]
-    # Triage 已实现
+    # Triage / Investigation 已实现
     assert any(a["name"] == "Triage" and a["status"] == "实现" for a in agents)
-    # Investigation 仍是规划
-    assert any(a["name"] == "Investigation" and a["status"] == "规划" for a in agents)
+    assert any(a["name"] == "Investigation" and a["status"] == "实现" for a in agents)
+    # Responder 仍是规划
+    assert any(a["name"] == "Responder" and a["status"] == "规划" for a in agents)
 
 
 def test_tools_registry() -> None:
