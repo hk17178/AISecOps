@@ -9,9 +9,11 @@ from .memory import InMemoryMemoryStore, MemoryStore
 from .orchestrator import Orchestrator, OrchestratorError
 from .tickets import (
     InMemoryTicketStore,
+    PgTicketStore,
     Ticket,
     TicketError,
     TicketStore,
+    build_ticket_store,
     seed_demo_tickets,
 )
 from .triage import TriageAgent, TriageVerdict
@@ -32,6 +34,8 @@ __all__ = [
     "Ticket",
     "TicketStore",
     "InMemoryTicketStore",
+    "PgTicketStore",
+    "build_ticket_store",
     "TicketError",
     "seed_demo_tickets",
 ]

@@ -6,7 +6,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from aisecops.L01_human_interface.api import app
-from aisecops.L02_agents import AgentContext, InMemoryTicketStore, TicketError
+from aisecops.L02_agents import (
+    AgentContext,
+    InMemoryTicketStore,
+    TicketError,
+    build_ticket_store,
+)
 from aisecops.L05_gateway.llm_gateway import LLMGateway, StubProvider
 from aisecops.L07_secops_capabilities import build_alert_triage_service
 
@@ -27,6 +32,15 @@ def test_ticket_workflow() -> None:
         s.decide(t.id, "已驳回")  # 已处理
     with pytest.raises(TicketError):
         s.decide("TKT-999", "已批准")  # 不存在
+
+
+def test_build_ticket_store_falls_back_to_memory() -> None:
+    # 无 DATABASE_URL（CI 路径）→ 内存实现，可用且不依赖 PG
+    s = build_ticket_store("")
+    assert isinstance(s, InMemoryTicketStore)
+    # 连不上的 PG 串也回退内存，不让平台起不来
+    s2 = build_ticket_store("postgresql://nobody@127.0.0.1:1/nope")
+    assert isinstance(s2, InMemoryTicketStore)
 
 
 async def test_triage_creates_hitl_ticket_on_threat() -> None:

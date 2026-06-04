@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # ---- 通知（首个=企业微信，ADR-0010）----
     wechat_webhook: str = ""
 
+    # ---- 持久化（P-18）----
+    # 留空 → 内存存储（重启丢，CI/快速开发用）；填 postgresql://... → PG 持久化
+    database_url: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

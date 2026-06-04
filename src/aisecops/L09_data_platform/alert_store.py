@@ -85,6 +85,88 @@ class InMemoryAlertStore(AlertStore):
         return len(self._alerts)
 
 
+class PgAlertStore(AlertStore):
+    """PostgreSQL 实现（持久化，P-18）。"""
+
+    _COLS = "seq, ts, host, source, severity, title, verdict, confidence"
+
+    def __init__(self, database_url: str, clock: Callable[[], datetime] = _default_clock) -> None:
+        from aisecops.L12_core_support.db import get_pool
+
+        self._pool = get_pool(database_url)
+        self._clock = clock
+        with self._pool.connection() as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS alerts ("
+                "seq SERIAL PRIMARY KEY, ts text, host text, source text, "
+                "severity text, title text, verdict text, confidence double precision)"
+            )
+
+    @staticmethod
+    def _to_alert(r: Any) -> Alert:
+        return Alert(
+            id=f"ALERT-{int(r[0]):04d}",
+            ts=r[1],
+            host=r[2],
+            source=r[3],
+            severity=r[4],
+            title=r[5],
+            verdict=r[6],
+            confidence=r[7],
+        )
+
+    def add(self, fields: dict[str, Any]) -> Alert:
+        ts = str(fields.get("ts") or self._clock().strftime("%Y-%m-%d %H:%M:%S"))
+        host = str(fields.get("host", ""))
+        source = str(fields.get("source", ""))
+        severity = str(fields.get("severity", "中"))
+        title = str(fields.get("title", ""))
+        verdict = str(fields.get("verdict", "新"))
+        confidence = float(fields.get("confidence", 0.0))
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "INSERT INTO alerts (ts, host, source, severity, title, verdict, confidence) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING seq",
+                (ts, host, source, severity, title, verdict, confidence),
+            ).fetchone()
+        seq = int(row[0]) if row else 0
+        return Alert(
+            id=f"ALERT-{seq:04d}",
+            ts=ts,
+            host=host,
+            source=source,
+            severity=severity,
+            title=title,
+            verdict=verdict,
+            confidence=confidence,
+        )
+
+    def recent(self, limit: int = 50) -> list[Alert]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(f"SELECT {self._COLS} FROM alerts ORDER BY seq DESC LIMIT %s", (limit,)).fetchall()
+        return [self._to_alert(r) for r in rows]
+
+    def all(self) -> list[Alert]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(f"SELECT {self._COLS} FROM alerts ORDER BY seq").fetchall()
+        return [self._to_alert(r) for r in rows]
+
+    def count(self) -> int:
+        with self._pool.connection() as conn:
+            row = conn.execute("SELECT count(*) FROM alerts").fetchone()
+        return int(row[0]) if row else 0
+
+
+def build_alert_store(database_url: str = "") -> AlertStore:
+    """有 database_url 用 PG（连不上回退内存）；否则内存。"""
+    if database_url:
+        try:
+            return PgAlertStore(database_url)
+        except Exception:  # noqa: BLE001 —— 连不上 PG 就回退，不让平台起不来
+            pass
+    return InMemoryAlertStore()
+
+
 def alert_stats(store: AlertStore) -> dict[str, Any]:
     """聚合统计，给仪表盘用。"""
     alerts = store.all()

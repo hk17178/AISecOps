@@ -16,8 +16,8 @@ from pydantic import BaseModel, ConfigDict
 
 from aisecops.L02_agents import (
     AgentContext,
-    InMemoryTicketStore,
     TicketError,
+    build_ticket_store,
     seed_demo_tickets,
 )
 from aisecops.L05_gateway.llm_gateway import LLMGateway
@@ -30,8 +30,8 @@ from aisecops.L07_secops_capabilities import (
     build_investigation_service,
 )
 from aisecops.L09_data_platform.alert_store import (
-    InMemoryAlertStore,
     alert_stats,
+    build_alert_store,
     seed_demo_alerts,
 )
 from aisecops.L10_data_collection.ingest import normalize_alert
@@ -45,15 +45,20 @@ _gateway = build_gateway()
 _registry = build_tool_registry()
 _ctx = AgentContext(llm=_gateway, tools=_registry)
 
-# HITL 工单库（真 store + 演示种子）；真威胁分诊会自动建单
-_tickets = InMemoryTicketStore()
-seed_demo_tickets(_tickets)
+# 持久化：有 DATABASE_URL 用 PG（重启不丢），否则内存。空库才放演示种子。
+_db_url = get_settings().database_url
+
+# HITL 工单库；真威胁分诊会自动建单
+_tickets = build_ticket_store(_db_url)
+if not _tickets.all():
+    seed_demo_tickets(_tickets)
 _triage_service = build_alert_triage_service(_ctx, _tickets)
 _invest_service = build_investigation_service(_ctx)
 
-# 告警库（真 store + 演示种子；接 SIEM webhook 后真数据流入）
-_alerts = InMemoryAlertStore()
-seed_demo_alerts(_alerts)
+# 告警库（接 SIEM webhook 后真数据流入）
+_alerts = build_alert_store(_db_url)
+if _alerts.count() == 0:
+    seed_demo_alerts(_alerts)
 
 
 def get_gateway() -> LLMGateway:

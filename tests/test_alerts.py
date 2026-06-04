@@ -8,6 +8,7 @@ from aisecops.L01_human_interface.api import app
 from aisecops.L09_data_platform.alert_store import (
     InMemoryAlertStore,
     alert_stats,
+    build_alert_store,
     seed_demo_alerts,
 )
 from aisecops.L10_data_collection.ingest import normalize_alert
@@ -25,6 +26,12 @@ def test_store_add_and_list() -> None:
     s.add({"host": "H2"})
     assert s.count() == 2
     assert s.recent()[0].host == "H2"  # 倒序，最新在前
+
+
+def test_build_alert_store_falls_back_to_memory() -> None:
+    # 无 DATABASE_URL（CI 路径）→ 内存实现；连不上的 PG 串也回退，不让平台起不来
+    assert isinstance(build_alert_store(""), InMemoryAlertStore)
+    assert isinstance(build_alert_store("postgresql://nobody@127.0.0.1:1/nope"), InMemoryAlertStore)
 
 
 def test_normalize_alert() -> None:
