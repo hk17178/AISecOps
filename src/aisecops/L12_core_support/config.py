@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     llm_model: str = "qwen2.5"
     llm_price_per_1k_cny: float = 0.0  # 每 1k token 价格，用于成本核算
 
+    # 多模型档位（§4.4 按场景分配大模型）。JSON 数组，每项 {name, model, price_per_1k_cny?,
+    # base_url?, api_key?}；未填的字段继承上面的 llm_*。留空 → 只有一个默认 provider。
+    # 例：'[{"name":"快","model":"qwen-turbo","price_per_1k_cny":0.002},
+    #       {"name":"强","model":"qwen-max","price_per_1k_cny":0.04}]'
+    llm_profiles: str = ""
+
     # ---- 预算 / 出域 ----
     monthly_budget_cny: float = 500.0
     allow_outbound: bool = False  # 出域开关（C-32，默认关）

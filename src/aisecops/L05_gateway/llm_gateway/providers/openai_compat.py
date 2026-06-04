@@ -25,7 +25,10 @@ class OpenAICompatProvider(Provider):
         model: str,
         price_per_1k_cny: float = 0.0,
         timeout: float = 30.0,
+        name: str | None = None,
     ) -> None:
+        if name is not None:
+            self.name = name
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model

@@ -10,10 +10,18 @@
 """
 
 from .budget import BudgetExceeded, BudgetTracker
-from .factory import build_gateway
+from .factory import build_gateway, build_providers
 from .fallback import GatewayError, complete_with_fallback
 from .gateway import LLMGateway, SchemaValidationError
 from .metadata import MetadataRecorder
+from .route_store import (
+    InMemoryRouteStore,
+    PgRouteStore,
+    RouteStore,
+    build_route_store,
+    seed_default_routes,
+)
+from .routing import DEFAULT_ROUTES, ScenarioRouter
 from .models import (
     CallMetadata,
     LLMRequest,
@@ -30,6 +38,14 @@ __all__ = [
     "LLMGateway",
     "SchemaValidationError",
     "build_gateway",
+    "build_providers",
+    "ScenarioRouter",
+    "DEFAULT_ROUTES",
+    "RouteStore",
+    "InMemoryRouteStore",
+    "PgRouteStore",
+    "build_route_store",
+    "seed_default_routes",
     "BudgetTracker",
     "BudgetExceeded",
     "GatewayError",

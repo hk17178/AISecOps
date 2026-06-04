@@ -85,3 +85,6 @@ models/*.onnx
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+# 上面 Python 的 `lib/` 会误伤前端源码目录 frontend/src/lib/，这里显式找回
+!frontend/src/lib/
+!frontend/src/lib/**

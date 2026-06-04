@@ -19,6 +19,7 @@ from .fallback import complete_with_fallback
 from .metadata import MetadataRecorder
 from .models import CallMetadata, LLMRequest, LLMResponse, Message, Role, TokenUsage
 from .providers.base import Provider
+from .routing import ScenarioRouter
 
 _JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
 
@@ -80,6 +81,7 @@ class LLMGateway:
         budget: BudgetTracker | None = None,
         recorder: MetadataRecorder | None = None,
         outbound_enabled: bool = False,
+        router: ScenarioRouter | None = None,
     ) -> None:
         if not providers:
             raise ValueError("至少需要一个 provider")
@@ -88,10 +90,18 @@ class LLMGateway:
         self.recorder = recorder or MetadataRecorder()
         # 全局出域开关（C-32，默认关）。关闭时出域 provider 不会被使用
         self.outbound_enabled = outbound_enabled
+        # 场景→模型路由（§4.4）。None 则所有场景用同一条 provider 顺序
+        self.router = router
 
-    def _usable(self) -> list[Provider]:
-        """当前可用 provider（出域 provider 仅在开关开启时算）。"""
-        return [p for p in self.providers if (not p.outbound) or self.outbound_enabled]
+    def _ordered(self, scenario: str) -> list[Provider]:
+        """按场景路由排序 provider（命中的优先，其余作降级）。"""
+        if self.router is None:
+            return self.providers
+        return self.router.order(scenario, self.providers)
+
+    def _usable_for(self, scenario: str) -> list[Provider]:
+        """该场景可用 provider（按路由排序 + 出域开关过滤）。"""
+        return [p for p in self._ordered(scenario) if (not p.outbound) or self.outbound_enabled]
 
     async def _invoke(self, provider: Provider, request: LLMRequest) -> tuple[str, TokenUsage, bool]:
         """单次调用一个 provider；出域则先脱敏（C-32）。返回 (文本, 用量, 是否脱敏)。"""
@@ -142,9 +152,9 @@ class LLMGateway:
         cross_checked = False
         cross_agreed: bool | None = None
 
-        if cross_check and len(self._usable()) >= 2:
-            # 双模型 cross-check（C-27）
-            usable = self._usable()
+        usable = self._usable_for(scenario)
+        if cross_check and len(usable) >= 2:
+            # 双模型 cross-check（C-27）：取该场景排序后的前两个
             content, usage, desensitized = await self._invoke(usable[0], request)
             content_b, _usage_b, _dz_b = await self._invoke(usable[1], request)
             provider = usable[0]
@@ -152,9 +162,9 @@ class LLMGateway:
             cross_checked = True
             cross_agreed = _normalize(content) == _normalize(content_b)
         else:
-            # 普通路由 + 降级（C-34）。cross_check 但可用 provider 不足 2 个时也走这里
+            # 普通路由 + 降级（C-34）。按场景排序后的 provider 链；cross_check 但不足 2 个也走这里
             content, usage, provider, fallback_used, desensitized = await complete_with_fallback(
-                self.providers,
+                self._ordered(scenario),
                 request,
                 outbound_enabled=self.outbound_enabled,
                 desensitizer=desensitize_request,
@@ -174,7 +184,7 @@ class LLMGateway:
             try:
                 parsed = response_model.model_validate(_extract_json(content))
             except (json.JSONDecodeError, ValidationError) as exc:
-                if provider.name == "stub":
+                if provider.is_stub:
                     # 离线 stub 产不出真实结构化研判 → 给 schema 合法占位
                     # （必填字段填零值，confidence=0 自然让上层 abstain → 待研判）
                     parsed = _stub_fill(response_model)
@@ -192,7 +202,7 @@ class LLMGateway:
             cost_cny=cost_cny,
             latency_ms=latency_ms,
             fallback_used=fallback_used,
-            stub=(provider.name == "stub"),
+            stub=provider.is_stub,
             outbound=provider.outbound,
             desensitized=desensitized,
             cross_checked=cross_checked,

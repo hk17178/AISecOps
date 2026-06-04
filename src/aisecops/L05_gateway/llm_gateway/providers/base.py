@@ -24,6 +24,9 @@ class Provider(ABC):
     price_per_1k_cny: float = 0.0
     # 是否「出域」（数据离开内网到外部）。出域调用受全局开关限制且需脱敏（C-32）
     outbound: bool = False
+    # 是否为离线占位 provider（stub）。Gateway 据此做 schema 占位填充与 metadata 标记，
+    # 与 name 解耦，方便给 stub 起业务可读的名字（如"本地-快"）也不破坏判定。
+    is_stub: bool = False
 
     @abstractmethod
     async def complete(self, request: LLMRequest) -> tuple[str, TokenUsage]:

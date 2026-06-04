@@ -28,9 +28,10 @@ class OutboundCapture(StubProvider):
 
 
 class BadProvider(StubProvider):
-    """非 stub 的 provider（name != 'stub'），用于测真 provider 的 schema 严格校验。"""
+    """模拟真 provider（is_stub=False），用于测真 provider 的 schema 严格校验。"""
 
     name = "bad"
+    is_stub = False
 
 
 class Verdict(BaseModel):

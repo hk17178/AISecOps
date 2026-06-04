@@ -20,8 +20,13 @@ from aisecops.L02_agents import (
     build_ticket_store,
     seed_demo_tickets,
 )
-from aisecops.L05_gateway.llm_gateway import LLMGateway
-from aisecops.L05_gateway.llm_gateway.factory import build_gateway
+from aisecops.L05_gateway.llm_gateway import (
+    LLMGateway,
+    ScenarioRouter,
+    build_gateway,
+    build_route_store,
+    seed_default_routes,
+)
 from aisecops.L06_mcp_servers import build_tool_registry
 from aisecops.L07_secops_capabilities import (
     AlertTriageService,
@@ -40,13 +45,19 @@ from aisecops.L12_core_support.config import get_settings
 app = FastAPI(title="AISECOPS · L05 测试台", version="0.1.0")
 
 _STATIC = Path(__file__).parent / "static"
-# 共享一个网关 + 工具注册表 + 上下文：分诊与成本统计读同一份数据
-_gateway = build_gateway()
-_registry = build_tool_registry()
-_ctx = AgentContext(llm=_gateway, tools=_registry)
 
 # 持久化：有 DATABASE_URL 用 PG（重启不丢），否则内存。空库才放演示种子。
 _db_url = get_settings().database_url
+
+# 场景→模型路由（§4.4）：从 RouteStore 加载（持久化），注入网关。
+_route_store = build_route_store(_db_url)
+seed_default_routes(_route_store)
+# 共享一个网关 + 工具注册表 + 上下文：分诊与成本统计读同一份数据
+_gateway = build_gateway()
+_default_provider = next((p.name for p in _gateway.providers if not p.is_stub), _gateway.providers[-1].name)
+_gateway.router = ScenarioRouter(_route_store.all(), default=_default_provider)
+_registry = build_tool_registry()
+_ctx = AgentContext(llm=_gateway, tools=_registry)
 
 # HITL 工单库；真威胁分诊会自动建单
 _tickets = build_ticket_store(_db_url)
@@ -215,6 +226,66 @@ async def get_cost() -> dict[str, Any]:
         "by_scenario": by_scenario,
         "providers": [{"name": p.name, "model": p.model, "outbound": p.outbound} for p in _gateway.providers],
     }
+
+
+@app.get("/api/routing")
+async def get_routing() -> dict[str, Any]:
+    """场景→模型路由表（§4.4）。列出可用 provider + 当前映射 + 每条命中的 model。"""
+    providers = [
+        {"name": p.name, "model": p.model, "stub": p.is_stub, "outbound": p.outbound} for p in _gateway.providers
+    ]
+    by_name = {p.name: p for p in _gateway.providers}
+    routes = []
+    for scenario, prov in sorted(_route_store.all().items()):
+        hit = by_name.get(prov)
+        routes.append(
+            {
+                "scenario": scenario,
+                "provider": prov,
+                "model": hit.model if hit else "（该模型未配置，回退默认）",
+                "available": hit is not None,
+            }
+        )
+    return {"routes": routes, "providers": providers, "default": _gateway.router.default if _gateway.router else None}
+
+
+class RouteIn(BaseModel):
+    """新增/修改一条路由：场景 → provider 名。"""
+
+    scenario: str
+    provider: str
+    actor: str = "未知"
+
+
+@app.put("/api/routing")
+async def put_routing(body: RouteIn) -> dict[str, Any]:
+    """增改一条场景路由：写存储（持久化）+ 更新在线网关 + 审计留痕（C-23）。"""
+    if not body.scenario.strip():
+        raise HTTPException(status_code=400, detail="scenario 不能为空")
+    names = {p.name for p in _gateway.providers}
+    if body.provider not in names:
+        raise HTTPException(status_code=400, detail=f"provider「{body.provider}」不存在，可选：{sorted(names)}")
+    _route_store.set(body.scenario, body.provider)
+    if _gateway.router is not None:
+        _gateway.router.set_route(body.scenario, body.provider)
+    _ctx.audit.append(
+        actor=body.actor,
+        action="routing_set",
+        target=body.scenario,
+        details={"provider": body.provider},
+    )
+    return {"status": "saved", "scenario": body.scenario, "provider": body.provider}
+
+
+@app.delete("/api/routing/{scenario:path}")
+async def delete_routing(scenario: str, actor: str = "未知") -> dict[str, Any]:
+    """删除一条场景路由：该场景回退默认 provider。"""
+    removed = _route_store.remove(scenario)
+    if _gateway.router is not None:
+        _gateway.router.remove_route(scenario)
+    if removed:
+        _ctx.audit.append(actor=actor, action="routing_delete", target=scenario, details={})
+    return {"status": "deleted" if removed else "not_found", "scenario": scenario}
 
 
 class IngestIn(BaseModel):

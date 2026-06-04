@@ -20,6 +20,7 @@ class StubProvider(Provider):
     """假 provider：不联网、不烧 token、结果可复现。"""
 
     name = "stub"
+    is_stub = True
 
     def __init__(
         self,
@@ -27,7 +28,11 @@ class StubProvider(Provider):
         price_per_1k_cny: float = 0.0,
         fail: bool = False,
         canned: str | None = None,
+        name: str | None = None,
     ) -> None:
+        # 只有显式传 name 才覆盖类属性（保留子类 class-attr name 的行为）
+        if name is not None:
+            self.name = name
         self.model = model
         self.price_per_1k_cny = price_per_1k_cny
         self._fail = fail
