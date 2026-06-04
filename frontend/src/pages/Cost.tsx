@@ -1,32 +1,58 @@
-import FlipCard from '../components/FlipCard'
+import { useEffect, useState } from 'react'
+import FlipCard, { type BackRow } from '../components/FlipCard'
+import { Card, Pill, Row, SectionTitle } from '../components/ui'
+import { apiGet } from '../lib/api'
 
-const PROVIDERS = [
-  { name: '豆包（默认 SaaS）', status: '健康', cls: 'text-sage border-sage' },
-  { name: '本地 Qwen / Ollama', status: '健康', cls: 'text-sage border-sage' },
-  { name: 'Claude（出域开关 · 默认关）', status: '按需', cls: 'text-ochre border-ochre' },
-]
+type CostData = {
+  monthly_cap_cny: number
+  spent_cny: number
+  remaining_cny: number
+  total_calls: number
+  total_tokens: number
+  by_provider: Record<string, number>
+  by_scenario: Record<string, number>
+  providers: { name: string; model: string; outbound: boolean }[]
+}
+
+function toRows(obj: Record<string, number>, empty: string): BackRow[] {
+  const rows = Object.entries(obj).map(([k, v]) => ({ k, v: String(v) }))
+  return rows.length ? rows : [{ k: empty, v: '—' }]
+}
 
 export default function Cost() {
+  const [c, setC] = useState<CostData | null>(null)
+
+  useEffect(() => {
+    apiGet<CostData>('/api/cost').then(setC).catch(() => setC(null))
+  }, [])
+
+  if (!c) return <div className="text-dim">加载中…</div>
+
   return (
     <div>
       <div className="grid grid-cols-4 gap-[18px] mb-[26px]">
-        <FlipCard label="本月成本" value="¥312" valueClass="text-terra" delay={0}
-          back={[{ k: '豆包', v: '¥181' }, { k: '通义', v: '¥96' }, { k: '本地 Qwen', v: '¥0' }, { k: 'Claude(出域)', v: '¥35' }]} />
-        <FlipCard label="调用次数" value="8,412" delay={80}
-          back={[{ k: '分诊', v: '5,108' }, { k: '调查', v: '2,217' }, { k: '报告', v: '1,087' }]} />
-        <FlipCard label="预算余量" value="¥188" valueClass="text-ochre" delay={160}
-          back={[{ k: '上限', v: '¥500' }, { k: '已用', v: '¥312' }]} />
-        <FlipCard label="降级触发" value="2 次" delay={240}
-          back={[{ k: '超时降级', v: '1' }, { k: '预算降级', v: '1' }]} />
+        <FlipCard label="本月成本" value={`¥${c.spent_cny}`} valueClass="text-terra" delay={0}
+          back={[{ k: '上限', v: `¥${c.monthly_cap_cny}` }, { k: '余量', v: `¥${c.remaining_cny}` }]} />
+        <FlipCard label="调用次数" value={String(c.total_calls)} delay={80}
+          back={toRows(c.by_scenario, '(暂无调用)')} />
+        <FlipCard label="Token 总量" value={String(c.total_tokens)} delay={160}
+          back={toRows(c.by_provider, '(暂无)')} />
+        <FlipCard label="预算余量" value={`¥${c.remaining_cny}`} valueClass="text-ochre" delay={240}
+          back={[{ k: '上限', v: `¥${c.monthly_cap_cny}` }, { k: '已用', v: `¥${c.spent_cny}` }]} />
       </div>
-      <div className="bg-paper border border-line rounded-[10px] p-5 lift max-w-[760px]">
-        <div className="text-[13px] text-dim uppercase tracking-wide mb-3">Provider 路由</div>
-        {PROVIDERS.map((p) => (
-          <div key={p.name} className="flex justify-between items-center py-2.5 border-b border-dotted border-line text-[14px]">
-            <span>{p.name}</span>
-            <span className={`text-[12px] border rounded-full px-2 ${p.cls}`}>{p.status}</span>
-          </div>
+      <Card className="max-w-[760px]">
+        <SectionTitle>Provider 路由 · 真实配置（来自 .env）</SectionTitle>
+        {c.providers.map((p) => (
+          <Row key={p.name}>
+            <span>
+              {p.name} <span className="text-dim text-[13px]">{p.model}</span>
+            </span>
+            <Pill tone={p.outbound ? 'warn' : 'ok'}>{p.outbound ? '出域' : '本地'}</Pill>
+          </Row>
         ))}
+      </Card>
+      <div className="text-dim text-[13px] mt-3">
+        数字为本进程真实统计；离线 stub 下成本为 0，调用后实时累计。
       </div>
     </div>
   )

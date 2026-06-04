@@ -1,23 +1,26 @@
+import { useEffect, useState } from 'react'
 import { Cards3, Pill, SectionTitle } from '../components/ui'
+import { apiGet } from '../lib/api'
 
-const AGENTS = [
-  { name: 'Orchestrator', status: '运行', tone: 'ok' as const, desc: '统一调度，禁省略。' },
-  { name: 'Triage', status: '运行', tone: 'ok' as const, desc: '告警分诊，含 abstain。' },
-  { name: 'Investigation', status: '运行', tone: 'ok' as const, desc: '事件取证 + 时间线。' },
-  { name: 'Responder', status: '待命', tone: 'warn' as const, desc: '处置执行，经 HITL。' },
-  { name: 'Reporter', status: '运行', tone: 'ok' as const, desc: '报告生成。' },
-  { name: 'Tuning', status: '周扫', tone: 'dim' as const, desc: '反馈调优（不训 DSLM）。' },
-]
+type AgentInfo = { name: string; status: string; desc: string }
 
 export default function Agent() {
+  const [agents, setAgents] = useState<AgentInfo[]>([])
+
+  useEffect(() => {
+    apiGet<{ agents: AgentInfo[] }>('/api/agents')
+      .then((d) => setAgents(d.agents))
+      .catch(() => setAgents([]))
+  }, [])
+
   return (
     <div>
-      <SectionTitle>Agent 编排 · Orchestrator 调度</SectionTitle>
+      <SectionTitle>Agent 名册 · 真实代码实现状态（来自后端）</SectionTitle>
       <Cards3>
-        {AGENTS.map((a) => (
+        {agents.map((a) => (
           <div key={a.name} className="bg-paper border border-line rounded-[10px] p-[18px] lift">
             <div className="font-semibold mb-1.5 flex items-center gap-2">
-              {a.name} <Pill tone={a.tone}>{a.status}</Pill>
+              {a.name} <Pill tone={a.status === '实现' ? 'ok' : 'dim'}>{a.status}</Pill>
             </div>
             <p className="text-[13px] text-dim">{a.desc}</p>
           </div>

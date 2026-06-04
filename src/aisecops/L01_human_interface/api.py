@@ -14,8 +14,10 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
+from aisecops.L02_agents import AgentContext
 from aisecops.L05_gateway.llm_gateway import LLMGateway
 from aisecops.L05_gateway.llm_gateway.factory import build_gateway
+from aisecops.L06_mcp_servers import build_tool_registry
 from aisecops.L07_secops_capabilities import (
     AlertTriageService,
     build_alert_triage_service,
@@ -25,8 +27,11 @@ from aisecops.L12_core_support.config import get_settings
 app = FastAPI(title="AISECOPS · L05 测试台", version="0.1.0")
 
 _STATIC = Path(__file__).parent / "static"
+# 共享一个网关 + 工具注册表 + 上下文：分诊与成本统计读同一份数据
 _gateway = build_gateway()
-_triage_service = build_alert_triage_service()
+_registry = build_tool_registry()
+_ctx = AgentContext(llm=_gateway, tools=_registry)
+_triage_service = build_alert_triage_service(_ctx)
 
 
 def get_gateway() -> LLMGateway:
@@ -122,6 +127,62 @@ async def get_config() -> dict[str, Any]:
 async def put_config(body: ConfigIn) -> dict[str, str]:
     _config_overrides.update(body.model_dump())
     return {"status": "saved", "note": "已暂存（内存）；DB 持久化与密钥加密为 P-18 待做"}
+
+
+# Agent 名册（诚实反映代码实现状态：当前仅 Orchestrator + Triage 已编码）
+_AGENT_ROSTER = [
+    {"name": "Orchestrator", "status": "实现", "desc": "统一调度，禁省略（C-5）"},
+    {"name": "Triage", "status": "实现", "desc": "告警分诊：结构化研判 + abstain + cross-check"},
+    {"name": "Investigation", "status": "规划", "desc": "事件取证 + 时间线"},
+    {"name": "Enrichment", "status": "规划", "desc": "上下文富化"},
+    {"name": "Responder", "status": "规划", "desc": "处置执行，经 HITL"},
+    {"name": "Reporter", "status": "规划", "desc": "报告生成"},
+    {"name": "Intel", "status": "规划", "desc": "威胁情报"},
+    {"name": "Tuning", "status": "规划", "desc": "反馈调优（不训 DSLM）"},
+]
+
+
+@app.get("/api/agents")
+async def get_agents() -> dict[str, Any]:
+    return {"agents": _AGENT_ROSTER}
+
+
+@app.get("/api/tools")
+async def get_tools() -> dict[str, Any]:
+    tools: list[dict[str, Any]] = []
+    ls = _registry.log_source
+    if ls is not None:
+        is_real = ls.name == "elasticsearch"
+        tools.append(
+            {
+                "name": "Elasticsearch",
+                "category": "data_sources",
+                "form": "薄适配器",
+                "status": "已接入" if is_real else "Stub（未配 ES 凭证，离线）",
+            }
+        )
+    return {"tools": tools, "note": "其余适配器（SIEM/EDR/通知）待接入"}
+
+
+@app.get("/api/cost")
+async def get_cost() -> dict[str, Any]:
+    history = _gateway.recorder.history
+    budget = _gateway.budget
+    by_provider: dict[str, int] = {}
+    by_scenario: dict[str, int] = {}
+    for m in history:
+        by_provider[m.provider] = by_provider.get(m.provider, 0) + 1
+        by_scenario[m.scenario] = by_scenario.get(m.scenario, 0) + 1
+    return {
+        "monthly_cap_cny": budget.monthly_cap_cny if budget else 0.0,
+        "spent_cny": round(budget.spent(), 4) if budget else 0.0,
+        "remaining_cny": round(budget.remaining(), 4) if budget else 0.0,
+        "total_calls": len(history),
+        "total_tokens": sum(m.total_tokens for m in history),
+        "by_provider": by_provider,
+        "by_scenario": by_scenario,
+        "providers": [{"name": p.name, "model": p.model, "outbound": p.outbound} for p in _gateway.providers],
+    }
 
 
 @app.get("/")

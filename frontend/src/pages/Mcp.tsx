@@ -1,17 +1,25 @@
+import { useEffect, useState } from 'react'
 import { Card, Pill, SectionTitle } from '../components/ui'
+import { apiGet } from '../lib/api'
 
-const TOOLS = [
-  { name: 'Elasticsearch', cat: 'data_sources', form: '薄适配器', fTone: 'dim' as const, status: '主日志源' },
-  { name: 'Syslog', cat: 'data_sources', form: '薄适配器', fTone: 'dim' as const, status: '已接入' },
-  { name: 'Splunk', cat: 'security_tools', form: '薄适配器', fTone: 'dim' as const, status: '按需' },
-  { name: 'CrowdStrike', cat: 'security_tools', form: '完整 MCP', fTone: 'warn' as const, status: '按需' },
-  { name: '企业微信通知', cat: 'custom', form: '薄适配器', fTone: 'dim' as const, status: '已接入' },
-]
+type Tool = { name: string; category: string; form: string; status: string }
 
 export default function Mcp() {
+  const [tools, setTools] = useState<Tool[]>([])
+  const [note, setNote] = useState('')
+
+  useEffect(() => {
+    apiGet<{ tools: Tool[]; note: string }>('/api/tools')
+      .then((d) => {
+        setTools(d.tools)
+        setNote(d.note)
+      })
+      .catch(() => setTools([]))
+  }, [])
+
   return (
     <div>
-      <SectionTitle>工具适配 · 默认薄适配器（ADR-0004）</SectionTitle>
+      <SectionTitle>工具适配 · 默认薄适配器（ADR-0004，来自后端注册表）</SectionTitle>
       <Card>
         <table className="w-full">
           <thead>
@@ -23,17 +31,20 @@ export default function Mcp() {
             </tr>
           </thead>
           <tbody>
-            {TOOLS.map((t) => (
+            {tools.map((t) => (
               <tr key={t.name} className="border-t border-dotted border-line text-[14px]">
                 <td className="py-3">{t.name}</td>
-                <td className="py-3 text-dim">{t.cat}</td>
-                <td className="py-3"><Pill tone={t.fTone}>{t.form}</Pill></td>
+                <td className="py-3 text-dim">{t.category}</td>
+                <td className="py-3">
+                  <Pill tone={t.form === '完整 MCP' ? 'warn' : 'dim'}>{t.form}</Pill>
+                </td>
                 <td className="py-3 text-dim">{t.status}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </Card>
+      {note && <div className="text-dim text-[13px] mt-3">{note}</div>}
     </div>
   )
 }
