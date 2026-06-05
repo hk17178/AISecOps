@@ -21,6 +21,7 @@ from .routers import (
     intel,
     investigation,
     knowledge,
+    log_sources,
     prompts,
     reports,
     routing,
@@ -60,6 +61,7 @@ for _module in (
     knowledge,
     ai_compliance,
     cockpit,
+    log_sources,
 ):
     app.include_router(_module.router)
 

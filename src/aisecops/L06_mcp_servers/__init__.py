@@ -8,6 +8,8 @@ from __future__ import annotations
 from aisecops.L12_core_support.config import Settings, get_settings
 
 from .adapter_store import (
+    LOG_SOURCE_KINDS,
+    QUERYABLE_KINDS,
     Adapter,
     AdapterStore,
     InMemoryAdapterStore,
@@ -37,6 +39,8 @@ __all__ = [
     "build_adapter_store",
     "seed_demo_adapters",
     "test_connectivity",
+    "LOG_SOURCE_KINDS",
+    "QUERYABLE_KINDS",
 ]
 
 

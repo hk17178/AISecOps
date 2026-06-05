@@ -10,7 +10,7 @@ from aisecops.L06_mcp_servers import test_connectivity as check_connectivity
 def test_adapter_store_crud() -> None:
     s = InMemoryAdapterStore()
     seed_demo_adapters(s, "http://localhost:9200")
-    assert len(s.all()) == 3
+    assert len(s.all()) == 4  # ES + Zabbix(data_sources) + SIEM + EDR
     a = s.create("自定义", "custom", "x", "")
     assert s.set_enabled(a.id, False).enabled is False
     assert s.set_status(a.id, "已连", "2026-06-04 10:00:00").last_status == "已连"
@@ -49,3 +49,13 @@ def test_adapter_api_crud_test_audited() -> None:
 
 def test_create_adapter_requires_name() -> None:
     assert client.post("/api/tools", json={"name": "  "}).status_code == 400
+
+
+def test_log_sources_view() -> None:
+    # 日志接入管理：列出 data_sources + 种类目录 + 可查询标记（Phase 3.1）
+    d = client.get("/api/log-sources").json()
+    assert "elasticsearch" in d["kinds"] and "zabbix" in d["kinds"]
+    es = [s for s in d["sources"] if s["kind"] == "elasticsearch"]
+    zbx = [s for s in d["sources"] if s["kind"] == "zabbix"]
+    assert es and es[0]["queryable"] is True  # ES 有真实查询适配器
+    assert zbx and zbx[0]["queryable"] is False  # Zabbix 已登记，查询适配器待接（诚实）

@@ -136,6 +136,7 @@
 | | AI 资产合规 | AI 资产清单 CRUD + 合规体检 + Shadow AI 发现（在用 LLM 未登记即影子，C-3，L11） |
 | **平台** | AI Agent | Orchestrator + 各 Agent 状态 |
 | | MCP 工具 | 工具适配（默认薄适配器，见 [ADR-0004](../adr/0004-l06-mcp-optional-thin-adapter.md)） |
+| | 日志接入 | 日志/数据源登记 + 连通测试（ES/Zabbix/Syslog/Kafka… 对标 Splunk「Data inputs」；查询适配器随用随接 ADR-0009） |
 | | Prompt 治理 | Prompt 版本（git 管理） |
 | | 模型 & 成本 | Provider 路由 + Token 成本 + 预算 + 翻牌卡 |
 | | 系统设置 | 3 角色 RBAC + 出域开关 + 月度预算 |

@@ -22,6 +22,11 @@ _is_outbound = is_outbound_url
 # 六大类（ADR-0004）：数据源 / 安全工具 / 协议 / 厂商 / AIOps / 自定义
 CATEGORIES = ("data_sources", "security_tools", "protocols", "vendors", "aiops", "custom")
 
+# 日志/数据源接入的已知种类（接入管理 catalog）
+LOG_SOURCE_KINDS = ("elasticsearch", "opensearch", "zabbix", "syslog", "kafka", "loki", "generic_http")
+# 已具备真实查询适配器的种类；其余为"已登记 + 可连通测试"，查询适配器随用随接（ADR-0009 日志留到最后）
+QUERYABLE_KINDS = ("elasticsearch",)
+
 
 class Adapter(BaseModel):
     id: str
@@ -200,5 +205,6 @@ def seed_demo_adapters(store: AdapterStore, es_hosts: str = "") -> None:
     if store.all():
         return
     store.create("Elasticsearch（日志源）", "data_sources", "elasticsearch", es_hosts)
+    store.create("Zabbix（监控告警源）", "data_sources", "zabbix", "")
     store.create("SIEM（待接）", "security_tools", "siem", "")
     store.create("EDR（待接）", "security_tools", "edr", "")
