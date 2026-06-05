@@ -11,11 +11,9 @@ def test_agents_roster() -> None:
     resp = client.get("/api/agents")
     assert resp.status_code == 200
     agents = resp.json()["agents"]
-    # 7+1 Agent 群已编码（Responder/Reporter/Enrichment/Intel 补齐）
-    for name in ("Triage", "Investigation", "Correlation", "Enrichment", "Intel", "Responder", "Reporter"):
+    # 7+1 Agent 群全部已编码（含 Tuning 反馈飞轮）
+    for name in ("Triage", "Investigation", "Correlation", "Enrichment", "Intel", "Responder", "Reporter", "Tuning"):
         assert any(a["name"] == name and a["status"] == "实现" for a in agents), name
-    # Tuning 仍规划（反馈飞轮下一步）
-    assert any(a["name"] == "Tuning" and a["status"] == "规划" for a in agents)
 
 
 def test_tools_registry() -> None:

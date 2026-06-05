@@ -93,3 +93,29 @@ async def test_triage_flow_enriches_and_responds_via_orchestrator() -> None:
     # 审计含富化 + 研判 + 建单
     actions = {e.action for e in ctx.audit.entries}
     assert {"enrich", "verdict", "ticket_auto_create"} <= actions
+
+
+def test_feedback_flywheel_end_to_end() -> None:
+    # 反馈飞轮：批准工单 → Tuning 自动沉淀知识 → 知识库可检索到该案例（回流）
+    from fastapi.testclient import TestClient
+
+    from aisecops.L01_human_interface.api import app
+
+    client = TestClient(app)
+    before = client.get("/api/knowledge").json()["docs"]
+    before_ids = {d["id"] for d in before}
+
+    pending = [t for t in client.get("/api/tickets").json()["tickets"] if t["status"] == "待审"]
+    assert pending, "需要至少一个待审工单"
+    tid = pending[0]["id"]
+    target = pending[0]["target"]
+    r = client.post(f"/api/tickets/{tid}/approve", json={"reason": "确认处置"})
+    assert r.status_code == 200
+
+    # 知识库多了一篇来源为该工单的案例
+    after = client.get("/api/knowledge").json()["docs"]
+    new = [d for d in after if d["id"] not in before_ids]
+    assert any(d.get("category") == "历史告警处理记录" for d in new)
+    # 能被检索召回（飞轮回流的消费端）
+    hits = client.post("/api/knowledge/search", json={"query": f"{target} 处置", "top_k": 5}).json()["hits"]
+    assert any("处置案例" in h["title"] for h in hits)

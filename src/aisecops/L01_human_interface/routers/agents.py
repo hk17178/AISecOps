@@ -23,7 +23,7 @@ _AGENT_ROSTER = [
     {"name": "Intel", "status": "实现", "desc": "威胁情报富化：IoC 比对(查而非记忆 C-25)"},
     {"name": "Responder", "status": "实现", "desc": "处置执行：写动作必经 HITL 工单(C-8)"},
     {"name": "Reporter", "status": "实现", "desc": "报告执行摘要：确定性取数 + LLM 叙述"},
-    {"name": "Tuning", "status": "规划", "desc": "反馈飞轮：结案自动沉淀知识(下一步)"},
+    {"name": "Tuning", "status": "实现", "desc": "反馈飞轮：工单/调查结案自动沉淀知识→回流分诊"},
 ]
 
 

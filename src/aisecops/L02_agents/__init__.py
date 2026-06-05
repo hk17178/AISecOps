@@ -18,6 +18,7 @@ from .enrichment import EnrichmentAgent
 from .intel import IntelAgent
 from .reporter import ReporterAgent
 from .responder import ResponderAgent
+from .tuning import TuningAgent
 from .investigation import InvestigationAgent, InvestigationVerdict
 from .memory import InMemoryMemoryStore, MemoryStore
 from .notify import (
@@ -90,6 +91,7 @@ __all__ = [
     "IntelAgent",
     "ResponderAgent",
     "ReporterAgent",
+    "TuningAgent",
     "sanitize_for_tag",
     "AgentConfig",
     "AgentConfigStore",

@@ -24,6 +24,7 @@ from aisecops.L02_agents import (
     SessionStore,
     Task,
     TriageAgent,
+    TuningAgent,
     build_agent_config_store,
     build_channel_store,
     build_dispatch_rule_store,
@@ -206,6 +207,7 @@ class Runtime:
             "intel": IntelAgent(self.iocs),
             "respond": ResponderAgent(self.tickets),
             "report": ReporterAgent(),
+            "tuning": TuningAgent(self.kb),  # 反馈飞轮：结案沉淀知识
         }
         self.orchestrator = Orchestrator(self.agents, self.ctx)
         # L07 业务出口经统一 Orchestrator 编排（不再各建一个单 Agent 的编排器）
