@@ -160,8 +160,32 @@ def build_user_store(database_url: str = "") -> UserStore:
 
 
 def seed_demo_users(store: UserStore) -> None:
-    """初始用户（首次空库）。沿用默认口令 aisecops，保持向后兼容。"""
+    """初始用户（首次空库）。
+
+    安全分级（C-9）：
+    - dev/CI：种 admin/analyst 弱口令 `aisecops`，保证本地与测试免配置即用。
+    - 生产：**绝不**种弱口令。优先用环境变量 AISECOPS_ADMIN_PASSWORD；未配则随机
+      生成一次性强口令并打印到启动日志（运维自取后应立即改密），且不种 analyst。
+    """
+    import os
+    import secrets as _secrets
+
+    from aisecops.L12_core_support.config import is_prod
+
     if store.all():
         return
-    store.create("admin", "aisecops", "管理员")
-    store.create("analyst", "aisecops", "分析师")
+
+    if not is_prod():
+        store.create("admin", "aisecops", "管理员")
+        store.create("analyst", "aisecops", "分析师")
+        return
+
+    admin_pw = os.environ.get("AISECOPS_ADMIN_PASSWORD", "").strip()
+    generated = ""
+    if not admin_pw:
+        admin_pw = _secrets.token_urlsafe(12)
+        generated = admin_pw
+    store.create("admin", admin_pw, "管理员")
+    if generated:
+        # 仅在随机生成时打印（环境变量注入的口令不回显，避免落日志）。
+        print(f"[AISECOPS] 已生成初始 admin 口令（请立即登录改密）：{generated}", flush=True)

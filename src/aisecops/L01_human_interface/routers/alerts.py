@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 
+from aisecops.L02_agents import Principal
 from aisecops.L08_analytics_engines import match_iocs
 from aisecops.L09_data_platform.alert_store import alert_stats
 from aisecops.L10_data_collection.ingest import normalize_alert
 
+from ..auth_deps import WRITE, require_role
 from ..runtime import rt
 
 router = APIRouter()
@@ -21,7 +23,7 @@ class IngestIn(BaseModel):
 
 
 @router.post("/api/ingest/alert")
-async def ingest_alert(body: IngestIn) -> dict[str, Any]:
+async def ingest_alert(body: IngestIn, _: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
     """L10 入库 → L08 降噪 → L09 告警库。
 
     入库前跑降噪：抑制规则命中 → 标记抑制入库；同指纹时间窗内 → 并入计数；
@@ -108,7 +110,7 @@ class RuleIn(BaseModel):
 
 
 @router.post("/api/suppression-rules")
-async def create_rule(body: RuleIn) -> dict[str, Any]:
+async def create_rule(body: RuleIn, principal: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
     """新建抑制规则（即时生效，写审计）。"""
     if not body.name.strip() or not body.pattern.strip():
         raise HTTPException(status_code=400, detail="名称与匹配内容不能为空")
@@ -116,7 +118,7 @@ async def create_rule(body: RuleIn) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="kind 须为 host/source/keyword/ip 之一")
     rule = rt.supp_rules.create(body.name.strip(), body.kind, body.pattern.strip())
     rt.ctx.audit.append(
-        actor=body.actor,
+        actor=principal.username,
         action="suppression_create",
         target=rule.id,
         details={"name": rule.name, "kind": rule.kind, "pattern": rule.pattern},
@@ -130,13 +132,15 @@ class RuleToggleIn(BaseModel):
 
 
 @router.put("/api/suppression-rules/{rule_id}")
-async def toggle_rule(rule_id: str, body: RuleToggleIn) -> dict[str, Any]:
+async def toggle_rule(
+    rule_id: str, body: RuleToggleIn, principal: Principal = Depends(require_role(*WRITE))
+) -> dict[str, Any]:
     """启用/停用抑制规则（即时生效，写审计）。"""
     rule = rt.supp_rules.set_enabled(rule_id, body.enabled)
     if rule is None:
         raise HTTPException(status_code=404, detail=f"规则 {rule_id} 不存在")
     rt.ctx.audit.append(
-        actor=body.actor,
+        actor=principal.username,
         action="suppression_toggle",
         target=rule_id,
         details={"enabled": body.enabled},
@@ -145,11 +149,11 @@ async def toggle_rule(rule_id: str, body: RuleToggleIn) -> dict[str, Any]:
 
 
 @router.delete("/api/suppression-rules/{rule_id}")
-async def delete_rule(rule_id: str, actor: str = "未知") -> dict[str, Any]:
+async def delete_rule(rule_id: str, principal: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
     """删除抑制规则（写审计）。"""
     removed = rt.supp_rules.remove(rule_id)
     if removed:
-        rt.ctx.audit.append(actor=actor, action="suppression_delete", target=rule_id, details={})
+        rt.ctx.audit.append(actor=principal.username, action="suppression_delete", target=rule_id, details={})
     return {"status": "deleted" if removed else "not_found", "id": rule_id}
 
 

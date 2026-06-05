@@ -18,6 +18,7 @@ from aisecops.L02_agents import (
     build_channel_store,
     build_dispatch_rule_store,
     build_playbook_store,
+    SessionStore,
     build_record_store,
     build_run_store,
     build_ticket_store,
@@ -62,6 +63,7 @@ from aisecops.L09_data_platform.alert_store import build_alert_store, seed_demo_
 from aisecops.L09_data_platform.event_store import build_event_store
 from aisecops.L09_data_platform.report_store import build_report_store
 from aisecops.L11_target_estate import build_asset_store, seed_demo_assets
+from aisecops.L12_core_support.audit import build_audit_log
 from aisecops.L12_core_support.config import Settings, get_settings
 from aisecops.L12_core_support.config_store import build_config_store
 
@@ -111,7 +113,11 @@ class Runtime:
         # Agent 运行时配置（阈值/cross-check/启停，改了即时生效）；注入 ctx
         self.agent_configs = build_agent_config_store(db_url)
         seed_agent_configs(self.agent_configs)
-        self.ctx = AgentContext(llm=self.gateway, tools=self.registry, agent_configs=self.agent_configs)
+        # 审计链落 PG（C-23 不可篡改 + P-18 重启不丢）；无 DB 回退内存
+        self.audit = build_audit_log(db_url)
+        self.ctx = AgentContext(
+            llm=self.gateway, tools=self.registry, agent_configs=self.agent_configs, audit=self.audit
+        )
 
         # HITL 工单库；真威胁分诊会自动建单
         self.tickets = build_ticket_store(db_url)
@@ -169,9 +175,10 @@ class Runtime:
         if not self.adapters.all():
             seed_demo_adapters(self.adapters, self.settings.es_hosts)
 
-        # 用户与 RBAC（L02 IAM）
+        # 用户与 RBAC（L02 IAM）+ 会话令牌（写端点鉴权）
         self.users = build_user_store(db_url)
         seed_demo_users(self.users)
+        self.sessions = SessionStore()
 
 
 # 全局单例：所有 router 共享

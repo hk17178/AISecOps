@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 
+from aisecops.L02_agents import Principal
+
+from ..auth_deps import WRITE, require_role
 from ..runtime import rt
 
 router = APIRouter()
@@ -31,7 +34,7 @@ class AssetIn(BaseModel):
 
 
 @router.post("/api/assets")
-async def create_asset(body: AssetIn) -> dict[str, Any]:
+async def create_asset(body: AssetIn, principal: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
     if not body.host.strip():
         raise HTTPException(status_code=400, detail="主机名不能为空")
     a = rt.assets.create(
@@ -44,7 +47,10 @@ async def create_asset(body: AssetIn) -> dict[str, Any]:
         body.note.strip(),
     )
     rt.ctx.audit.append(
-        actor=body.actor, action="asset_create", target=a.id, details={"host": a.host, "importance": a.importance}
+        actor=principal.username,
+        action="asset_create",
+        target=a.id,
+        details={"host": a.host, "importance": a.importance},
     )
     return a.model_dump()
 
@@ -56,19 +62,23 @@ class AssetUpdateIn(BaseModel):
 
 
 @router.put("/api/assets/{asset_id}")
-async def update_asset(asset_id: str, body: AssetUpdateIn) -> dict[str, Any]:
+async def update_asset(
+    asset_id: str, body: AssetUpdateIn, principal: Principal = Depends(require_role(*WRITE))
+) -> dict[str, Any]:
     fields = body.model_dump()
-    actor = str(fields.pop("actor", "未知"))
+    fields.pop("actor", None)
     a = rt.assets.update(asset_id, fields)
     if a is None:
         raise HTTPException(status_code=404, detail=f"资产 {asset_id} 不存在")
-    rt.ctx.audit.append(actor=actor, action="asset_update", target=asset_id, details={"fields": list(fields.keys())})
+    rt.ctx.audit.append(
+        actor=principal.username, action="asset_update", target=asset_id, details={"fields": list(fields.keys())}
+    )
     return a.model_dump()
 
 
 @router.delete("/api/assets/{asset_id}")
-async def delete_asset(asset_id: str, actor: str = "未知") -> dict[str, Any]:
+async def delete_asset(asset_id: str, principal: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
     removed = rt.assets.remove(asset_id)
     if removed:
-        rt.ctx.audit.append(actor=actor, action="asset_delete", target=asset_id, details={})
+        rt.ctx.audit.append(actor=principal.username, action="asset_delete", target=asset_id, details={})
     return {"status": "deleted" if removed else "not_found", "id": asset_id}

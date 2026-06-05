@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from aisecops.L02_agents import Principal
+
+from ..auth_deps import ADMIN, require_role
 from ..runtime import rt
 
 router = APIRouter()
@@ -44,7 +47,7 @@ class RouteIn(BaseModel):
 
 
 @router.put("/api/routing")
-async def put_routing(body: RouteIn) -> dict[str, Any]:
+async def put_routing(body: RouteIn, principal: Principal = Depends(require_role(*ADMIN))) -> dict[str, Any]:
     """增改一条场景路由：写存储（持久化）+ 更新在线网关 + 审计留痕（C-23）。"""
     if not body.scenario.strip():
         raise HTTPException(status_code=400, detail="scenario 不能为空")
@@ -55,7 +58,7 @@ async def put_routing(body: RouteIn) -> dict[str, Any]:
     if rt.gateway.router is not None:
         rt.gateway.router.set_route(body.scenario, body.provider)
     rt.ctx.audit.append(
-        actor=body.actor,
+        actor=principal.username,
         action="routing_set",
         target=body.scenario,
         details={"provider": body.provider},
@@ -64,11 +67,11 @@ async def put_routing(body: RouteIn) -> dict[str, Any]:
 
 
 @router.delete("/api/routing/{scenario:path}")
-async def delete_routing(scenario: str, actor: str = "未知") -> dict[str, Any]:
+async def delete_routing(scenario: str, principal: Principal = Depends(require_role(*ADMIN))) -> dict[str, Any]:
     """删除一条场景路由：该场景回退默认 provider。"""
     removed = rt.route_store.remove(scenario)
     if rt.gateway.router is not None:
         rt.gateway.router.remove_route(scenario)
     if removed:
-        rt.ctx.audit.append(actor=actor, action="routing_delete", target=scenario, details={})
+        rt.ctx.audit.append(actor=principal.username, action="routing_delete", target=scenario, details={})
     return {"status": "deleted" if removed else "not_found", "scenario": scenario}

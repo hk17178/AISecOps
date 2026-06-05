@@ -3,11 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from aisecops.L02_agents import Principal
 from aisecops.L06_mcp_servers import test_connectivity
 
+from ..auth_deps import ADMIN, WRITE, require_role
 from ..runtime import rt
 
 router = APIRouter()
@@ -47,35 +49,39 @@ class ToggleIn(BaseModel):
 
 
 @router.post("/api/tools")
-async def create_adapter(body: AdapterIn) -> dict[str, Any]:
+async def create_adapter(body: AdapterIn, principal: Principal = Depends(require_role(*ADMIN))) -> dict[str, Any]:
     if not body.name.strip():
         raise HTTPException(status_code=400, detail="适配器名不能为空")
     a = rt.adapters.create(body.name.strip(), body.category, body.kind.strip(), body.endpoint.strip())
     rt.ctx.audit.append(
-        actor=body.actor, action="adapter_create", target=a.id, details={"name": a.name, "kind": a.kind}
+        actor=principal.username, action="adapter_create", target=a.id, details={"name": a.name, "kind": a.kind}
     )
     return a.model_dump()
 
 
 @router.put("/api/tools/{adapter_id}")
-async def toggle_adapter(adapter_id: str, body: ToggleIn) -> dict[str, Any]:
+async def toggle_adapter(
+    adapter_id: str, body: ToggleIn, principal: Principal = Depends(require_role(*ADMIN))
+) -> dict[str, Any]:
     a = rt.adapters.set_enabled(adapter_id, body.enabled)
     if a is None:
         raise HTTPException(status_code=404, detail=f"适配器 {adapter_id} 不存在")
-    rt.ctx.audit.append(actor=body.actor, action="adapter_toggle", target=adapter_id, details={"enabled": body.enabled})
+    rt.ctx.audit.append(
+        actor=principal.username, action="adapter_toggle", target=adapter_id, details={"enabled": body.enabled}
+    )
     return a.model_dump()
 
 
 @router.delete("/api/tools/{adapter_id}")
-async def delete_adapter(adapter_id: str, actor: str = "未知") -> dict[str, Any]:
+async def delete_adapter(adapter_id: str, principal: Principal = Depends(require_role(*ADMIN))) -> dict[str, Any]:
     removed = rt.adapters.remove(adapter_id)
     if removed:
-        rt.ctx.audit.append(actor=actor, action="adapter_delete", target=adapter_id, details={})
+        rt.ctx.audit.append(actor=principal.username, action="adapter_delete", target=adapter_id, details={})
     return {"status": "deleted" if removed else "not_found", "id": adapter_id}
 
 
 @router.post("/api/tools/{adapter_id}/test")
-async def test_adapter(adapter_id: str, actor: str = "未知") -> dict[str, Any]:
+async def test_adapter(adapter_id: str, principal: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
     """连通测试：真探一次（外网端点受出域开关约束）。"""
     a = rt.adapters.get(adapter_id)
     if a is None:
@@ -83,5 +89,5 @@ async def test_adapter(adapter_id: str, actor: str = "未知") -> dict[str, Any]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     status = test_connectivity(a, rt.settings.allow_outbound, now)
     updated = rt.adapters.set_status(adapter_id, status, now)
-    rt.ctx.audit.append(actor=actor, action="adapter_test", target=adapter_id, details={"status": status})
+    rt.ctx.audit.append(actor=principal.username, action="adapter_test", target=adapter_id, details={"status": status})
     return (updated or a).model_dump()

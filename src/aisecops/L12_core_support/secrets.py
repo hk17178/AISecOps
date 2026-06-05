@@ -16,6 +16,8 @@ import os
 
 from cryptography.fernet import Fernet, InvalidToken
 
+from aisecops.L12_core_support.config import is_prod
+
 # 入库需加密的敏感配置键
 SECRET_KEYS = {"llm_api_key", "wechat_webhook", "es_api_key", "es_password"}
 
@@ -30,6 +32,9 @@ def _fernet(master_key: str = "") -> Fernet:
     key = master_key or os.environ.get("AISECOPS_MASTER_KEY", "")
     if key:
         return Fernet(key.encode() if isinstance(key, str) else key)
+    # C-9 fail-closed：生产态绝不静默回退公开 dev 密钥（否则漏配即等于明文存储）。
+    if is_prod():
+        raise RuntimeError("生产环境必须配置 AISECOPS_MASTER_KEY（Fernet key），否则敏感配置无法安全加密。")
     return Fernet(_derive_dev_key())
 
 

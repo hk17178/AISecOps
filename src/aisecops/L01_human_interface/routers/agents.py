@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from aisecops.L02_agents import Principal
+
+from ..auth_deps import ADMIN, require_role
 from ..runtime import rt
 
 router = APIRouter()
@@ -59,10 +62,13 @@ class AgentConfigIn(BaseModel):
 
 
 @router.put("/api/agents/{name}")
-async def update_agent_config(name: str, body: AgentConfigIn) -> dict[str, Any]:
+async def update_agent_config(
+    name: str, body: AgentConfigIn, principal: Principal = Depends(require_role(*ADMIN))
+) -> dict[str, Any]:
     """改 Agent 配置（即时生效）。model 写进路由表（§4.4），其余写 agent_configs。"""
     fields = body.model_dump(exclude_none=True)
-    actor = str(fields.pop("actor", "未知"))
+    fields.pop("actor", None)
+    actor = principal.username
     model = fields.pop("model", None)
     cfg = rt.agent_configs.update(name, fields)
     if cfg is None:

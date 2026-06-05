@@ -3,12 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from aisecops.L02_agents import Principal
 from aisecops.L09_data_platform.alert_store import alert_stats
 
+from ..auth_deps import WRITE, require_role
 from ..runtime import rt
 
 router = APIRouter()
@@ -58,7 +60,7 @@ class ReportGenIn(BaseModel):
 
 
 @router.post("/api/reports/generate")
-async def generate_report(body: ReportGenIn) -> dict[str, Any]:
+async def generate_report(body: ReportGenIn, principal: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
     """按模板从真实数据生成报告（执行摘要走 L07/report 强模型，离线诚实降级）。"""
     if body.kind not in ("daily", "weekly", "incident"):
         raise HTTPException(status_code=400, detail="kind 须为 daily/weekly/incident")
@@ -66,7 +68,7 @@ async def generate_report(body: ReportGenIn) -> dict[str, Any]:
     title, markdown, summary = await rt.reporting.generate(body.kind, data)
     rep = rt.reports.create(body.kind, title, markdown, summary)
     rt.ctx.audit.append(
-        actor=body.actor, action="report_generate", target=rep.id, details={"kind": body.kind, "title": title}
+        actor=principal.username, action="report_generate", target=rep.id, details={"kind": body.kind, "title": title}
     )
     return rep.full()
 

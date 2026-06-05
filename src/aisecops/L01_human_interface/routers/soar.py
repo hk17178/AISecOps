@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from aisecops.L02_agents import Principal
+
+from ..auth_deps import ADMIN, WRITE, require_role
 from ..runtime import rt
 
 router = APIRouter()
@@ -31,7 +34,7 @@ class PlaybookIn(BaseModel):
 
 
 @router.post("/api/playbooks")
-async def create_playbook(body: PlaybookIn) -> dict[str, Any]:
+async def create_playbook(body: PlaybookIn, principal: Principal = Depends(require_role(*ADMIN))) -> dict[str, Any]:
     """新建处置剧本（写审计）。"""
     if not body.name.strip() or not body.actions:
         raise HTTPException(status_code=400, detail="剧本名与至少一个动作不能为空")
@@ -41,7 +44,7 @@ async def create_playbook(body: PlaybookIn) -> dict[str, Any]:
     pb = rt.playbooks.create(
         body.name.strip(), body.actions, body.risk, body.trigger_verdict, body.trigger_severity, body.trigger_keyword
     )
-    rt.ctx.audit.append(actor=body.actor, action="playbook_create", target=pb.id, details={"name": pb.name})
+    rt.ctx.audit.append(actor=principal.username, action="playbook_create", target=pb.id, details={"name": pb.name})
     return pb.model_dump()
 
 
@@ -51,21 +54,23 @@ class PlaybookToggleIn(BaseModel):
 
 
 @router.put("/api/playbooks/{playbook_id}")
-async def toggle_playbook(playbook_id: str, body: PlaybookToggleIn) -> dict[str, Any]:
+async def toggle_playbook(
+    playbook_id: str, body: PlaybookToggleIn, principal: Principal = Depends(require_role(*ADMIN))
+) -> dict[str, Any]:
     pb = rt.playbooks.set_enabled(playbook_id, body.enabled)
     if pb is None:
         raise HTTPException(status_code=404, detail=f"剧本 {playbook_id} 不存在")
     rt.ctx.audit.append(
-        actor=body.actor, action="playbook_toggle", target=playbook_id, details={"enabled": body.enabled}
+        actor=principal.username, action="playbook_toggle", target=playbook_id, details={"enabled": body.enabled}
     )
     return pb.model_dump()
 
 
 @router.delete("/api/playbooks/{playbook_id}")
-async def delete_playbook(playbook_id: str, actor: str = "未知") -> dict[str, Any]:
+async def delete_playbook(playbook_id: str, principal: Principal = Depends(require_role(*ADMIN))) -> dict[str, Any]:
     removed = rt.playbooks.remove(playbook_id)
     if removed:
-        rt.ctx.audit.append(actor=actor, action="playbook_delete", target=playbook_id, details={})
+        rt.ctx.audit.append(actor=principal.username, action="playbook_delete", target=playbook_id, details={})
     return {"status": "deleted" if removed else "not_found", "id": playbook_id}
 
 
@@ -79,7 +84,7 @@ class SoarTriggerIn(BaseModel):
 
 
 @router.post("/api/soar/trigger")
-async def soar_trigger(body: SoarTriggerIn) -> dict[str, Any]:
+async def soar_trigger(body: SoarTriggerIn, principal: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
     """触发剧本 → 建 HITL 工单（C-8，高风险必经人审）+ 记执行（待审）。"""
     pb = rt.playbooks.get(body.playbook_id)
     if pb is None:
@@ -96,7 +101,7 @@ async def soar_trigger(body: SoarTriggerIn) -> dict[str, Any]:
     ticket = rt.tickets.create(action=pb.actions[0], target=target, risk=pb.risk, source_alert=body.alert_id)
     run = rt.runs.create(pb, target=target, action=action, ticket_id=ticket.id, alert_id=body.alert_id)
     rt.ctx.audit.append(
-        actor=body.actor,
+        actor=principal.username,
         action="soar_trigger",
         target=run.id,
         details={"playbook": pb.name, "ticket": ticket.id, "action": action, "target": target},
@@ -110,7 +115,7 @@ async def get_runs() -> dict[str, Any]:
 
 
 @router.post("/api/soar/runs/{run_id}/undo")
-async def undo_run(run_id: str, actor: str = "未知") -> dict[str, Any]:
+async def undo_run(run_id: str, principal: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
     """撤销已执行的处置（标记可撤销，留痕）。"""
     run = next((r for r in rt.runs.all() if r.id == run_id), None)
     if run is None:
@@ -119,6 +124,9 @@ async def undo_run(run_id: str, actor: str = "未知") -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=f"仅「已执行」可撤销（当前 {run.status}）")
     updated = rt.runs.set_status(run_id, "已撤销")
     rt.ctx.audit.append(
-        actor=actor, action="soar_undo", target=run_id, details={"action": run.action, "target": run.target}
+        actor=principal.username,
+        action="soar_undo",
+        target=run_id,
+        details={"action": run.action, "target": run.target},
     )
     return (updated or run).model_dump()

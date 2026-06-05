@@ -6,8 +6,10 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from aisecops.L02_agents import Principal
 from aisecops.L05_gateway.llm_gateway import LLMGateway
 
+from ..auth_deps import ADMIN, require_role
 from ..runtime import STATIC, get_gateway, rt
 
 router = APIRouter()
@@ -26,7 +28,11 @@ async def health() -> dict[str, str]:
 
 
 @router.post("/api/llm/call")
-async def llm_call(body: CallIn, gateway: LLMGateway = Depends(get_gateway)) -> dict[str, Any]:
+async def llm_call(
+    body: CallIn,
+    gateway: LLMGateway = Depends(get_gateway),
+    _: Principal = Depends(require_role(*ADMIN)),
+) -> dict[str, Any]:
     resp = await gateway.call(body.prompt, scenario=body.scenario)
     return {"content": resp.content, "metadata": resp.metadata.model_dump()}
 

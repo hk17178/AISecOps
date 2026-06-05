@@ -5,9 +5,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 
+from aisecops.L02_agents import Principal
 from aisecops.L05_gateway.llm_gateway import LLMGateway, Message, Role
 from aisecops.L07_secops_capabilities import AlertTriageService
 
+from ..auth_deps import WRITE, require_role
 from ..runtime import get_gateway, get_triage_service, rt
 
 router = APIRouter()
@@ -23,7 +25,11 @@ class AlertIn(BaseModel):
 
 
 @router.post("/api/triage")
-async def triage(body: AlertIn, svc: AlertTriageService = Depends(get_triage_service)) -> dict[str, Any]:
+async def triage(
+    body: AlertIn,
+    svc: AlertTriageService = Depends(get_triage_service),
+    _: Principal = Depends(require_role(*WRITE)),
+) -> dict[str, Any]:
     """端到端告警分诊：CMDB 资产富化 → Orchestrator → Triage（ES 富化 + LLM 研判）→ 结果。"""
     cfg = rt.agent_configs.get("triage")
     if cfg is not None and not cfg.enabled:
@@ -58,7 +64,11 @@ _CHAT_SYSTEM = (
 
 
 @router.post("/api/chat")
-async def chat(body: ChatIn, gateway: LLMGateway = Depends(get_gateway)) -> dict[str, Any]:
+async def chat(
+    body: ChatIn,
+    gateway: LLMGateway = Depends(get_gateway),
+    _: Principal = Depends(require_role(*WRITE)),
+) -> dict[str, Any]:
     """Chat 助手：经 L05 网关（按 L01/chat 场景路由 + C-20 注入沙箱）真实调用 LLM。"""
     if not body.message.strip():
         raise HTTPException(status_code=400, detail="消息不能为空")

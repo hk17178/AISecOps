@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from aisecops.L05_gateway.llm_gateway import LLMGateway
 from aisecops.L06_mcp_servers import ToolRegistry
-from aisecops.L12_core_support.audit import AuditLog
+from aisecops.L12_core_support.audit import AuditLog, AuditSink
 
 from .agent_config import AgentConfig, AgentConfigStore
 from .memory import InMemoryMemoryStore, MemoryStore
@@ -44,7 +44,7 @@ class AgentContext:
 
     llm: LLMGateway
     memory: MemoryStore = field(default_factory=InMemoryMemoryStore)
-    audit: AuditLog = field(default_factory=AuditLog)
+    audit: AuditSink = field(default_factory=AuditLog)
     tools: ToolRegistry = field(default_factory=ToolRegistry)  # L06 工具（默认空，无富化）
     agent_configs: AgentConfigStore | None = None  # 运行时 Agent 配置（改了即时生效）
 

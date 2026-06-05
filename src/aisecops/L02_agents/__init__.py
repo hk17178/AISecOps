@@ -31,6 +31,7 @@ from .notify import (
     seed_demo_channels_rules,
 )
 from .orchestrator import Orchestrator, OrchestratorError
+from .sessions import Principal, SessionStore
 from .soar import (
     InMemoryPlaybookStore,
     InMemoryRunStore,
@@ -73,6 +74,8 @@ __all__ = [
     "InMemoryMemoryStore",
     "Orchestrator",
     "OrchestratorError",
+    "Principal",
+    "SessionStore",
     "TriageAgent",
     "TriageVerdict",
     "InvestigationAgent",

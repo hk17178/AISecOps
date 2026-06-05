@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from aisecops.L02_agents import TicketError
+from aisecops.L02_agents import Principal, TicketError
 
+from ..auth_deps import WRITE, require_role
 from ..runtime import rt
 
 router = APIRouter()
@@ -18,24 +19,23 @@ async def get_tickets() -> dict[str, Any]:
 
 
 class DecisionIn(BaseModel):
-    """HITL 审批入参：理由 + 操作人。"""
+    """HITL 审批入参：理由（操作人由会话令牌解析，不信任客户端自报）。"""
 
     reason: str = ""
-    actor: str = "未知"
 
 
-def _decide(ticket_id: str, status: str, audit_action: str, body: DecisionIn) -> dict[str, Any]:
+def _decide(ticket_id: str, status: str, audit_action: str, reason: str, actor: str) -> dict[str, Any]:
     try:
-        ticket = rt.tickets.decide(ticket_id, status, body.reason, body.actor)
+        ticket = rt.tickets.decide(ticket_id, status, reason, actor)
     except TicketError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    # C-23：HITL 决策写入不可篡改审计链(谁、为什么)
+    # C-23：HITL 决策写入不可篡改审计链(谁、为什么)；actor 来自已认证身份
     rt.ctx.audit.append(
-        actor=body.actor,
+        actor=actor,
         action=audit_action,
         target=ticket_id,
         details={
-            "reason": body.reason,
+            "reason": reason,
             "ticket_action": ticket.action,
             "ticket_target": ticket.target,
         },
@@ -47,7 +47,7 @@ def _decide(ticket_id: str, status: str, audit_action: str, body: DecisionIn) ->
             rt.runs.set_status(run.id, "已执行")  # 占位执行(真实经 L06 调外部工具)
             rt.playbooks.bump_runs(run.playbook_id)
             rt.ctx.audit.append(
-                actor=body.actor,
+                actor=actor,
                 action="soar_execute",
                 target=run.id,
                 details={"playbook": run.playbook_name, "action": run.action, "target": run.target},
@@ -58,10 +58,14 @@ def _decide(ticket_id: str, status: str, audit_action: str, body: DecisionIn) ->
 
 
 @router.post("/api/tickets/{ticket_id}/approve")
-async def approve_ticket(ticket_id: str, body: DecisionIn) -> dict[str, Any]:
-    return _decide(ticket_id, "已批准", "ticket_approve", body)
+async def approve_ticket(
+    ticket_id: str, body: DecisionIn, principal: Principal = Depends(require_role(*WRITE))
+) -> dict[str, Any]:
+    return _decide(ticket_id, "已批准", "ticket_approve", body.reason, principal.username)
 
 
 @router.post("/api/tickets/{ticket_id}/reject")
-async def reject_ticket(ticket_id: str, body: DecisionIn) -> dict[str, Any]:
-    return _decide(ticket_id, "已驳回", "ticket_reject", body)
+async def reject_ticket(
+    ticket_id: str, body: DecisionIn, principal: Principal = Depends(require_role(*WRITE))
+) -> dict[str, Any]:
+    return _decide(ticket_id, "已驳回", "ticket_reject", body.reason, principal.username)

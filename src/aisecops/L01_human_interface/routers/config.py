@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict
 
+from aisecops.L02_agents import Principal
 from aisecops.L06_mcp_servers import build_notifier
 from aisecops.L12_core_support.config import get_settings
 from aisecops.L12_core_support.config_store import EDITABLE_KEYS, coerce
 
+from ..auth_deps import ADMIN, require_role
 from ..runtime import apply_overrides, rt
 
 router = APIRouter()
@@ -40,10 +42,11 @@ async def get_config() -> dict[str, Any]:
 
 
 @router.put("/api/config")
-async def put_config(body: ConfigIn) -> dict[str, Any]:
+async def put_config(body: ConfigIn, principal: Principal = Depends(require_role(*ADMIN))) -> dict[str, Any]:
     """改配置 → 存 DB（敏感键加密）+ 即时应用可热更项（预算/出域）。"""
     data = body.model_dump(exclude_unset=True)
-    actor = str(data.pop("actor", "未知"))
+    data.pop("actor", None)
+    actor = principal.username
     applied = []
     for key, raw in data.items():
         if key not in EDITABLE_KEYS:

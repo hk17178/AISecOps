@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { apiPost } from './lib/api'
+import { apiPost, setAuthToken } from './lib/api'
 
 export type User = { username: string; role: string }
+type LoginResp = User & { token: string }
 
 type AuthContextType = {
   user: User | null
@@ -23,12 +24,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   async function login(username: string, password: string) {
-    const u = await apiPost<User>('/api/login', { username, password })
+    const resp = await apiPost<LoginResp>('/api/login', { username, password })
+    setAuthToken(resp.token)
+    const u: User = { username: resp.username, role: resp.role }
     setUser(u)
     localStorage.setItem('aisecops_user', JSON.stringify(u))
   }
 
   function logout() {
+    apiPost('/api/logout', {}).catch(() => {})  // 通知后端吊销令牌（失败不阻塞登出）
+    setAuthToken(null)
     setUser(null)
     localStorage.removeItem('aisecops_user')
   }

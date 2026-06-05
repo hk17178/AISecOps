@@ -10,9 +10,24 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def app_env() -> str:
+    """运行环境：dev / ci / prod（读 AISECOPS_ENV，默认 dev）。
+
+    生产态(prod)下若干"漏配即裸奔"的兜底会改为 fail-closed：主密钥必配（C-9）、
+    不种弱口令默认管理员。dev/CI 保留便捷兜底，保证本地与测试免配置即可跑。
+    """
+    return os.environ.get("AISECOPS_ENV", "dev").strip().lower()
+
+
+def is_prod() -> bool:
+    """是否生产环境（决定安全兜底是否 fail-closed）。"""
+    return app_env() == "prod"
 
 
 class Settings(BaseSettings):
