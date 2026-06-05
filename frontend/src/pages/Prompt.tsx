@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card, Pill, SectionTitle, btnGhost, btnPrimary } from '../components/ui'
-import { apiGet, apiPost } from '../lib/api'
+import { apiDelete, apiGet, apiPost } from '../lib/api'
 import { useAuth } from '../auth'
 
 type PromptMeta = { key: string; active_version: number; versions: number; updated: string }
@@ -47,6 +47,28 @@ export default function Prompt() {
     select(sel)
     loadList()
   }
+  async function createKey() {
+    const key = prompt('新 Prompt key（形如 hunting/system）')?.trim()
+    if (!key) return
+    if (!key.includes('/')) return setMsg('key 形如 scenario/system')
+    try {
+      await apiPost(`/api/prompts/${key}`, { content: '你是…（请编辑）', note: '新建', actor })
+      setMsg(`已新建 ${key}`)
+      loadList()
+      select(key)
+    } catch (e) {
+      setMsg(`失败：${(e as Error).message}`)
+    }
+  }
+  async function removeKey() {
+    if (!sel || !confirm(`删除 Prompt「${sel}」及其所有版本？`)) return
+    await apiDelete(`/api/prompts/${sel}`)
+    setMsg(`已删除 ${sel}`)
+    setSel('')
+    setDetail(null)
+    setContent('')
+    loadList()
+  }
 
   const activeVer = detail?.versions.find((v) => v.active)
 
@@ -54,7 +76,10 @@ export default function Prompt() {
     <div className="grid grid-cols-[240px_1fr] gap-[34px] items-start">
       {/* Prompt 列表 */}
       <Card>
-        <SectionTitle>Prompt（版本化 P-6）</SectionTitle>
+        <div className="flex items-center justify-between mb-1">
+          <SectionTitle>Prompt（版本化 P-6）</SectionTitle>
+          <button onClick={createKey} className="text-sage hover:underline text-[12px]">+ 新建</button>
+        </div>
         {list.map((p) => (
           <button key={p.key} onClick={() => select(p.key)}
             className={`block w-full text-left py-2 px-2 rounded-lg text-[13px] ${sel === p.key ? 'bg-[#f3ead7] font-semibold' : 'hover:bg-paper2'}`}>
@@ -69,7 +94,10 @@ export default function Prompt() {
         <Card>
           <div className="flex items-center justify-between mb-2">
             <SectionTitle>{sel ? `编辑 ${sel}` : '选择一个 Prompt'}</SectionTitle>
-            {activeVer && <Pill tone="ok">当前 v{activeVer.version}</Pill>}
+            <span className="flex items-center gap-2">
+              {activeVer && <Pill tone="ok">当前 v{activeVer.version}</Pill>}
+              {sel && <button onClick={removeKey} className="text-dim hover:text-terra text-[12px]">删除</button>}
+            </span>
           </div>
           <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={8}
             className="w-full bg-paper2 border border-line rounded-lg px-3 py-2 text-[13px] leading-relaxed font-mono" />

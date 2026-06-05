@@ -124,12 +124,74 @@ async def delete_rule(rule_id: str, principal: Principal = Depends(require_role(
     return {"status": "deleted" if removed else "not_found", "id": rule_id}
 
 
+def _mttr_hours(tickets: list[Any]) -> float:
+    """平均处置时长（建单 ts → 审批 decided_at），仅计已决工单。"""
+    from datetime import datetime
+
+    deltas = []
+    for t in tickets:
+        if t.decided_at and t.ts:
+            try:
+                a = datetime.strptime(t.ts, "%Y-%m-%d %H:%M:%S")
+                b = datetime.strptime(t.decided_at, "%Y-%m-%d %H:%M:%S")
+                deltas.append((b - a).total_seconds() / 3600)
+            except ValueError:
+                continue
+    return round(sum(deltas) / len(deltas), 1) if deltas else 0.0
+
+
 @router.get("/api/dashboard")
 async def get_dashboard() -> dict[str, Any]:
+    from datetime import datetime, timezone
+
     stats = alert_stats(rt.alerts)
     budget = rt.gateway.budget
     stats["spent_cny"] = round(budget.spent(), 4) if budget else 0.0
     stats["monthly_cap_cny"] = budget.monthly_cap_cny if budget else 0.0
     stats["triage_calls"] = len(rt.gateway.recorder.history)
     stats["hitl_pending"] = rt.tickets.pending_count()
+
+    # 告警趋势（近 7 天，按 ts 的日期聚合，已降噪视图）
+    active = [a for a in rt.alerts.all() if not a.suppressed]
+    by_day: dict[str, int] = {}
+    for a in active:
+        day = str(a.ts)[:10]
+        if day:
+            by_day[day] = by_day.get(day, 0) + 1
+    days = sorted(by_day)[-7:]
+    stats["trend"] = [{"date": d, "count": by_day[d]} for d in days]
+
+    # 研判分布
+    by_verdict: dict[str, int] = {}
+    for a in active:
+        by_verdict[a.verdict] = by_verdict.get(a.verdict, 0) + 1
+    stats["by_verdict"] = by_verdict
+
+    # 降噪率（与降噪页同口径）
+    stats["dedupe_reduction"] = dedupe_stats(rt.alerts)["reduction_pct"]
+
+    # 工单看板（协作态）+ MTTR + 超 SLA
+    tickets = rt.tickets.all()
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    stats["ticket_board"] = {
+        "pending": sum(1 for t in tickets if t.status == "待审"),
+        "in_progress": sum(1 for t in tickets if t.progress == "处理中"),
+        "done": sum(1 for t in tickets if t.progress == "已完成"),
+        "overdue": sum(1 for t in tickets if t.sla_due and now_str > t.sla_due and t.progress != "已完成"),
+    }
+    stats["mttr_hours"] = _mttr_hours(tickets)
+    stats["events"] = rt.events.count()
+
+    # 反馈飞轮沉淀量（知识库总量 + 来自结案的）
+    docs = rt.kb.store.all()
+    stats["knowledge"] = {
+        "total": len(docs),
+        "from_flywheel": sum(1 for d in docs if d.source.startswith("ticket:")),
+    }
+
+    # 成本按场景
+    by_scenario: dict[str, float] = {}
+    for m in rt.gateway.recorder.history:
+        by_scenario[m.scenario] = round(by_scenario.get(m.scenario, 0.0) + m.cost_cny, 4)
+    stats["cost_by_scenario"] = by_scenario
     return stats

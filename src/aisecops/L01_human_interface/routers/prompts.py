@@ -74,9 +74,20 @@ class PromptSaveIn(BaseModel):
 async def save_prompt(
     key: str, body: PromptSaveIn, principal: Principal = Depends(require_role(*ADMIN))
 ) -> dict[str, Any]:
-    """编辑保存为新版本（自动置为活跃，旧版本保留可回滚）。"""
+    """编辑保存为新版本（key 不存在则新建为 v1；自动置活跃，旧版本保留可回滚）。"""
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="内容不能为空")
+    if "/" not in key:
+        raise HTTPException(status_code=400, detail="key 形如 scenario/system，如 hunting/system")
     pv = rt.prompts.save(key, body.content, body.note.strip(), principal.username)
     rt.ctx.audit.append(actor=principal.username, action="prompt_save", target=key, details={"version": pv.version})
     return pv.model_dump()
+
+
+@router.delete("/api/prompts/{key:path}")
+async def delete_prompt(key: str, principal: Principal = Depends(require_role(*ADMIN))) -> dict[str, Any]:
+    """删除一个 prompt key 及其所有版本。"""
+    removed = rt.prompts.remove(key)
+    if removed:
+        rt.ctx.audit.append(actor=principal.username, action="prompt_delete", target=key, details={})
+    return {"status": "deleted" if removed else "not_found", "key": key}

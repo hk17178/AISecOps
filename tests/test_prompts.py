@@ -76,3 +76,21 @@ def test_agent_prompt_hot_load() -> None:
     assert AgentContext(llm=LLMGateway([StubProvider()])).governed_prompt("triage", _GUIDANCE) == _GUIDANCE
     # 安全脚手架（防注入/JSON schema）始终独立存在
     assert "防提示注入" in _SCAFFOLD and "JSON" in _SCAFFOLD
+
+
+def test_prompt_create_new_key_and_delete() -> None:
+    # 新建 key（save 到不存在的 key = v1）+ 删除（⑤ Prompt CRUD）
+    r = client.post("/api/prompts/hunting/system", json={"content": "你是威胁狩猎助手", "note": "new"})
+    assert r.status_code == 200 and r.json()["version"] == 1
+    assert any(p["key"] == "hunting/system" for p in client.get("/api/prompts").json()["prompts"])
+    assert client.delete("/api/prompts/hunting/system").json()["status"] == "deleted"
+    assert not any(p["key"] == "hunting/system" for p in client.get("/api/prompts").json()["prompts"])
+    # key 必须含 /
+    assert client.post("/api/prompts/badkey", json={"content": "x"}).status_code == 400
+
+
+def test_dashboard_has_rich_metrics() -> None:
+    d = client.get("/api/dashboard").json()
+    for k in ("trend", "by_verdict", "dedupe_reduction", "ticket_board", "mttr_hours", "knowledge", "cost_by_scenario"):
+        assert k in d, k
+    assert set(d["ticket_board"]) == {"pending", "in_progress", "done", "overdue"}

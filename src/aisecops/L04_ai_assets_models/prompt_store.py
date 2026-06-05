@@ -53,6 +53,11 @@ class PromptStore(ABC):
         """把 active 指回指定旧版本。"""
         raise NotImplementedError
 
+    @abstractmethod
+    def remove(self, key: str) -> bool:
+        """删除一个 prompt key 及其所有版本。"""
+        raise NotImplementedError
+
 
 class InMemoryPromptStore(PromptStore):
     def __init__(self, clock: Callable[[], datetime] = _default_clock) -> None:
@@ -93,6 +98,11 @@ class InMemoryPromptStore(PromptStore):
             if p.key == key:
                 p.active = p.version == version
         return target
+
+    def remove(self, key: str) -> bool:
+        before = len(self._items)
+        self._items = [p for p in self._items if p.key != key]
+        return len(self._items) < before
 
 
 class PgPromptStore(PromptStore):
@@ -163,6 +173,11 @@ class PgPromptStore(PromptStore):
             conn.execute("UPDATE prompts SET active=false WHERE pkey=%s", (key,))
             conn.execute("UPDATE prompts SET active=true WHERE pkey=%s AND version=%s", (key, version))
         return self._to_pv(row)
+
+    def remove(self, key: str) -> bool:
+        with self._pool.connection() as conn:
+            cur = conn.execute("DELETE FROM prompts WHERE pkey=%s", (key,))
+            return bool(cur.rowcount)
 
 
 def build_prompt_store(database_url: str = "") -> PromptStore:

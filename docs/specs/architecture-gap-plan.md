@@ -84,10 +84,11 @@
 > **3.2 ③Skills(SOP)** ✅：[ADR-0013](../adr/0013-skills-sop-boundary.md) 厘清 Skill/Playbook/Prompt/知识库边界；
 > L04 SkillStore + match_skills；Investigation 按场景自动附 SOP 步骤；前端「Skills·SOP」管理页。159 测试绿。
 
-## Phase 4 · 可视化快赢（④ + ⑤剩余）
-- **④ 仪表盘增强**，建议补：告警趋势(时序) · 按严重度/来源/Kill-Chain阶段分布 · **MTTD/MTTR** · 待研判队列+SLA · HITL 工单看板 · 失陷主机 Top · Agent 活动量 · 成本趋势 · 降噪率趋势 · 飞轮沉淀量。
-- **⑤ Prompt 新建/删除 CRUD**（热加载已在 Phase 1 做）。
-- DoD：仪表盘 ≥6 块真实可视化（来自真 store）；Prompt 可增删 key。
+## Phase 4 · 可视化快赢（④ + ⑤剩余）✅ 已完成
+
+> **④ 仪表盘增强** ✅：/api/dashboard 补 告警趋势(7天) / 研判分布 / 降噪率 / HITL 工单看板(待审·处理中·完成·超SLA) /
+> MTTR / 安全事件 / 反馈飞轮沉淀量 / 成本按场景。前端加 8 块真实可视化(CSS 柱状，无图表库依赖)。
+> **⑤ Prompt 新建/删除 CRUD** ✅：PromptStore.remove + DELETE 端点；前端「新建/删除」(热加载 Phase1 已做)。161 测试绿。
 
 ## Phase 5 · 域控 AD 集成（⑥，排后）
 - L06 protocols/LDAP 适配器 + L02 IAM 联邦（AD 账号登录，映射到三角色）。
