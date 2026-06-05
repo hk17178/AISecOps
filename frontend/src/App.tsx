@@ -14,6 +14,7 @@ import Dispatch from './pages/Dispatch'
 import Report from './pages/Report'
 import Cmdb from './pages/Cmdb'
 import Intel from './pages/Intel'
+import Knowledge from './pages/Knowledge'
 import Agent from './pages/Agent'
 import Mcp from './pages/Mcp'
 import Prompt from './pages/Prompt'
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/report" element={<Report />} />
           <Route path="/cmdb" element={<Cmdb />} />
           <Route path="/intel" element={<Intel />} />
+          <Route path="/knowledge" element={<Knowledge />} />
           <Route path="/agent" element={<Agent />} />
           <Route path="/mcp" element={<Mcp />} />
           <Route path="/prompt" element={<Prompt />} />
