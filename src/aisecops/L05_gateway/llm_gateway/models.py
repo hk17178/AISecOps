@@ -52,6 +52,12 @@ class CallMetadata(BaseModel):
     provider: str
     model: str
     budget_tag: str
+    # C-30 可复现：实际生效的温度与随机种子（分诊/调查/关联强制 temp=0 + 固定 seed）
+    temperature: float = 0.0
+    seed: int | None = None
+    # C-33 归因：哪个 Agent 调的 + 端到端追踪 id
+    agent_name: str = ""
+    trace_id: str = ""
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
@@ -65,6 +71,8 @@ class CallMetadata(BaseModel):
     # C-27：是否做了双模型 cross-check，以及两模型是否一致（None=未做/无法做）
     cross_checked: bool = False
     cross_check_agreed: bool | None = None
+    # C-27/C-33：cross-check 第二模型的成本明细（cost_cny 已含 A+B 合计）
+    cross_check_cost_cny: float = 0.0
 
 
 class LLMResponse(BaseModel):

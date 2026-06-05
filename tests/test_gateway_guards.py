@@ -116,3 +116,74 @@ async def test_cross_check_insufficient_providers() -> None:
     resp = await gw.call("x", scenario="t", cross_check=True)
     assert resp.metadata.cross_checked is True
     assert resp.metadata.cross_check_agreed is None
+
+
+# ---- 第二梯队加固（网关修真）----
+
+from typing import ClassVar  # noqa: E402
+
+from aisecops.L05_gateway.llm_gateway.gateway import DEFAULT_SEED  # noqa: E402
+
+
+class VerdictCC(BaseModel):
+    """带 cross_check_fields：只比 verdict，不比 evidence。"""
+
+    cross_check_fields: ClassVar[tuple[str, ...]] = ("verdict",)
+    verdict: str
+    confidence: float = 0.0
+    evidence: list[str] = []
+
+
+class RaisingProvider(StubProvider):
+    """complete 抛非 ProviderError 的脏异常，验证降级链兜住（C-34，#9）。"""
+
+    name = "raiser"
+
+    async def complete(self, request: LLMRequest) -> tuple[str, TokenUsage]:
+        raise ValueError("畸形响应体")
+
+
+async def test_cross_check_field_level_agreement() -> None:
+    # 同 verdict、不同 evidence/置信度 → 关键字段一致即判一致（#6，逐字符会判不一致）
+    a = StubProvider(model="a", canned='{"verdict":"真威胁","confidence":0.9,"evidence":["A"]}')
+    b = StubProvider(model="b", canned='{"verdict":"真威胁","confidence":0.7,"evidence":["B"]}')
+    gw = LLMGateway([a, b])
+    resp = await gw.call("x", scenario="t", response_model=VerdictCC, cross_check=True)
+    assert resp.metadata.cross_check_agreed is True
+
+
+async def test_cross_check_counts_both_provider_costs() -> None:
+    # 双模型成本都计入（#7：旧实现只记 A，系统性低估约 50%）
+    a = StubProvider(model="a", price_per_1k_cny=1.0)
+    b = StubProvider(model="b", price_per_1k_cny=1.0)
+    gw = LLMGateway([a, b])
+    resp = await gw.call("一些较长的输入用于产生 token", scenario="t", cross_check=True)
+    assert resp.metadata.cross_check_cost_cny > 0
+    # 合计成本 > 仅 A 的成本
+    a_only = resp.metadata.prompt_tokens + resp.metadata.completion_tokens
+    assert resp.metadata.cost_cny > a_only / 1000 * 1.0
+
+
+async def test_default_seed_injected_for_deterministic_call() -> None:
+    gw = LLMGateway([StubProvider()])
+    det = await gw.call("x", scenario="t", temperature=0.0)
+    assert det.metadata.seed == DEFAULT_SEED  # #8：temp=0 缺省固定 seed
+    creative = await gw.call("x", scenario="t", temperature=0.7)
+    assert creative.metadata.seed is None  # 创意类不强制
+
+
+async def test_malformed_output_degrades_to_stub_not_500() -> None:
+    # 非 stub 输出畸形 → schema 降级到 stub 占位（#19），而非冒泡 500
+    bad = BadProvider(canned="这不是 JSON")
+    gw = LLMGateway([bad, StubProvider()])
+    resp = await gw.call("x", scenario="t", response_model=Verdict)
+    assert resp.metadata.stub is True
+    assert resp.parsed is not None and resp.parsed.confidence == 0.0
+
+
+async def test_dirty_exception_falls_through_to_stub() -> None:
+    # provider 抛脏异常（非 ProviderError）也降级（#9）
+    gw = LLMGateway([RaisingProvider(), StubProvider()])
+    resp = await gw.call("x", scenario="t")
+    assert resp.metadata.provider == "stub"
+    assert resp.metadata.fallback_used is True

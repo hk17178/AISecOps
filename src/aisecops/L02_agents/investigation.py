@@ -67,7 +67,9 @@ class InvestigationAgent(Agent):
             Message(role=Role.system, content=_SYSTEM),
             Message(role=Role.user, content=f"问题：{question}\n<logs>\n{logs_text}\n</logs>"),
         ]
-        resp = await ctx.llm.call(messages, scenario="L07/investigation", response_model=InvestigationVerdict)
+        resp = await ctx.llm.call(
+            messages, scenario="L07/investigation", response_model=InvestigationVerdict, agent_name=self.role
+        )
         verdict: InvestigationVerdict = resp.parsed
 
         abstained = verdict.confidence < self.confidence_threshold

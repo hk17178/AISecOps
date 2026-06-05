@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -41,6 +41,9 @@ class ChainStep(BaseModel):
 
 class CorrelationConclusion(BaseModel):
     """关联分析的结构化输出（C-21）。"""
+
+    # C-27：cross-check 只比"是否成事件 + 严重度"，不比叙述文本
+    cross_check_fields: ClassVar[tuple[str, ...]] = ("is_incident", "severity")
 
     is_incident: bool = False
     title: str = ""
@@ -89,6 +92,7 @@ class CorrelationAgent(Agent):
             scenario="L08/correlation",
             response_model=CorrelationConclusion,
             cross_check=cross_check,
+            agent_name=self.role,
         )
         conclusion: CorrelationConclusion = resp.parsed
 

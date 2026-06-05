@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -26,6 +26,9 @@ _SYSTEM = (
 
 class TriageVerdict(BaseModel):
     """分诊研判的结构化输出（C-21）。"""
+
+    # C-27：cross-check 只比关键决策字段（verdict），不比 evidence/措辞
+    cross_check_fields: ClassVar[tuple[str, ...]] = ("verdict",)
 
     verdict: str
     confidence: float
@@ -76,6 +79,7 @@ class TriageAgent(Agent):
             scenario="L07/alert_triage",
             response_model=TriageVerdict,
             cross_check=cross_check,
+            agent_name=self.role,
         )
         verdict: TriageVerdict = resp.parsed
 
