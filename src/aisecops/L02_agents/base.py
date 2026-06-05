@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from aisecops.L03_ai_assets_rag import KnowledgeBase
+from aisecops.L04_ai_assets_models import PromptStore
 from aisecops.L05_gateway.llm_gateway import LLMGateway
 from aisecops.L06_mcp_servers import ToolRegistry
 from aisecops.L12_core_support.audit import AuditLog, AuditSink
@@ -60,10 +61,26 @@ class AgentContext:
     tools: ToolRegistry = field(default_factory=ToolRegistry)  # L06 工具（默认空，无富化）
     agent_configs: AgentConfigStore | None = None  # 运行时 Agent 配置（改了即时生效）
     rag: KnowledgeBase | None = None  # L03 知识库（检索增强，默认无）
+    prompts: PromptStore | None = None  # L04 Prompt 治理（热加载 active 版本）
 
     def config_for(self, role: str) -> AgentConfig | None:
         """取某 Agent 的活配置（没接 store 则 None，用代码默认）。"""
         return self.agent_configs.get(role) if self.agent_configs else None
+
+    def governed_prompt(self, role: str, default_guidance: str) -> str:
+        """取该 Agent 的"可治理 guidance"——UI 改 Prompt 即时生效（⑤热加载）。
+
+        只热加载**人设/指引**部分；安全与格式脚手架（防注入/JSON schema/标签规则）由各 Agent
+        在代码里固定追加，不可被 UI 编辑掉——避免误删防护导致 schema/越狱事故（C-20/C-21）。
+        无 store 或无该 key 的活版本 → 回退代码默认 guidance。
+        """
+        cfg = self.config_for(role)
+        key = cfg.prompt_key if cfg else ""
+        if key and self.prompts is not None:
+            pv = self.prompts.active(key)
+            if pv is not None and pv.content.strip():
+                return pv.content
+        return default_guidance
 
 
 class Agent(ABC):

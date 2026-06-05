@@ -150,9 +150,10 @@ def build_agent_config_store(database_url: str = "") -> AgentConfigStore:
     return InMemoryAgentConfigStore()
 
 
-# 两个真实 agent 的默认配置（名→场景→prompt key）
+# 已编码 agent 的默认配置（名→场景→prompt key）
 _SEED = [
     ("triage", "L07/alert_triage", "triage/system"),
+    ("investigation", "L07/investigation", "investigation/system"),
     ("correlation", "L08/correlation", "correlation/system"),
 ]
 

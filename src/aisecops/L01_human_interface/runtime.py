@@ -192,9 +192,10 @@ class Runtime:
         # 告警接入出口（L07）：归一化+情报+降噪+入库流水线，从表现层下沉（审查 #23）
         self.ingest = build_ingest_service(normalize_alert, self.iocs, self.dedup, self.alerts, self.supp_rules)
 
-        # Prompt 治理（L04）
+        # Prompt 治理（L04）；注入 ctx → Agent 热加载 active 版本（⑤）
         self.prompts = build_prompt_store(db_url)
         seed_demo_prompts(self.prompts)
+        self.ctx.prompts = self.prompts
 
         # MCP 工具适配器（L06）
         self.adapters = build_adapter_store(db_url)

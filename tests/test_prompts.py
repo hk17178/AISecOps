@@ -52,3 +52,27 @@ def test_prompt_list_and_validation() -> None:
     assert any(p["key"] == "chat/system" for p in lst)
     assert client.post("/api/prompts/triage/system", json={"content": "  "}).status_code == 400
     assert client.get("/api/prompts/nonexistent/key").status_code == 404
+
+
+def test_agent_prompt_hot_load() -> None:
+    # 改 Prompt → Agent governed_prompt 即时变；安全脚手架始终在（不可被改掉）⑤
+    from aisecops.L02_agents import AgentContext, build_agent_config_store, seed_agent_configs
+    from aisecops.L02_agents.triage import _GUIDANCE, _SCAFFOLD
+    from aisecops.L04_ai_assets_models import build_prompt_store, seed_demo_prompts
+    from aisecops.L05_gateway.llm_gateway import LLMGateway, StubProvider
+
+    cfgs = build_agent_config_store("")
+    seed_agent_configs(cfgs)
+    prompts = build_prompt_store("")
+    seed_demo_prompts(prompts)
+    ctx = AgentContext(llm=LLMGateway([StubProvider()]), agent_configs=cfgs, prompts=prompts)
+
+    # 默认 = 种子 guidance
+    assert ctx.governed_prompt("triage", _GUIDANCE).startswith("你是安全告警分诊助手")
+    # 改 prompt → 立刻生效
+    prompts.save("triage/system", "只关注勒索软件迹象。", note="t", author="tester")
+    assert ctx.governed_prompt("triage", _GUIDANCE) == "只关注勒索软件迹象。"
+    # 无 prompts store → 回退代码默认
+    assert AgentContext(llm=LLMGateway([StubProvider()])).governed_prompt("triage", _GUIDANCE) == _GUIDANCE
+    # 安全脚手架（防注入/JSON schema）始终独立存在
+    assert "防提示注入" in _SCAFFOLD and "JSON" in _SCAFFOLD
