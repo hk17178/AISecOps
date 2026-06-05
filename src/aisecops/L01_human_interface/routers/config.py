@@ -38,6 +38,9 @@ async def get_config() -> dict[str, Any]:
         "allow_outbound": s.allow_outbound,
         "es_hosts": s.es_hosts,
         "wechat_webhook_set": bool(s.wechat_webhook),
+        # 认证联邦状态（ADR-0014，只读展示）
+        "auth_mode": rt.auth.mode,
+        "default_assignee": s.default_assignee,
     }
 
 

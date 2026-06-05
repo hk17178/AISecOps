@@ -11,6 +11,8 @@ type Config = {
   allow_outbound: boolean
   es_hosts: string
   wechat_webhook_set: boolean
+  auth_mode: string
+  default_assignee: string
 }
 type User = { username: string; role: string; enabled: boolean }
 
@@ -91,6 +93,16 @@ export default function Settings() {
       {/* 用户与 RBAC */}
       <Card>
         <SectionTitle>用户管理 · RBAC（口令 scrypt 哈希）</SectionTitle>
+        {cfg && (
+          <div className="text-dim text-[12px] mb-2 flex items-center gap-2">
+            认证模式：
+            <Pill tone={cfg.auth_mode === 'ldap' ? 'ok' : 'dim'}>
+              {cfg.auth_mode === 'ldap' ? 'AD/LDAP 联邦（本地兜底）' : '本地账号'}
+            </Pill>
+            {cfg.default_assignee && <span>· 工单默认派发：{cfg.default_assignee}</span>}
+            <span className="text-dim">（AD 经 .env LDAP_URL 启用，ADR-0014）</span>
+          </div>
+        )}
         {users.map((u) => (
           <div key={u.username} className="flex justify-between items-center py-2.5 border-b border-dotted border-line text-[14px]">
             <span className="flex items-center gap-2">

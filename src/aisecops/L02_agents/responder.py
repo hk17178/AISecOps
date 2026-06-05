@@ -16,8 +16,9 @@ class ResponderAgent(Agent):
 
     role = "responder"
 
-    def __init__(self, ticket_store: TicketStore) -> None:
+    def __init__(self, ticket_store: TicketStore, default_assignee: str = "") -> None:
         self._tickets = ticket_store
+        self._default_assignee = default_assignee  # 自动派发处理人（可为 AD 账号，ADR-0014）
 
     async def run(self, task: Task, ctx: AgentContext) -> AgentResult:
         action = str(task.payload.get("action", "隔离主机"))
@@ -32,6 +33,13 @@ class ResponderAgent(Agent):
             target=ticket.id,
             details={"action": action, "target": target, "risk": risk, "source_alert": source_alert},
         )
+        # 自动派发到默认处理人（如 AD 账号，ADR-0014）
+        assignee = self._default_assignee
+        if assignee:
+            self._tickets.assign(ticket.id, assignee, actor=self.role)
+            ctx.audit.append(actor=self.role, action="ticket_assign", target=ticket.id, details={"assignee": assignee})
         return AgentResult(
-            agent=self.role, ok=True, data={"ticket_id": ticket.id, "status": ticket.status, "action": action}
+            agent=self.role,
+            ok=True,
+            data={"ticket_id": ticket.id, "status": ticket.status, "action": action, "assignee": assignee},
         )

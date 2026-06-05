@@ -90,10 +90,27 @@
 > MTTR / 安全事件 / 反馈飞轮沉淀量 / 成本按场景。前端加 8 块真实可视化(CSS 柱状，无图表库依赖)。
 > **⑤ Prompt 新建/删除 CRUD** ✅：PromptStore.remove + DELETE 端点；前端「新建/删除」(热加载 Phase1 已做)。161 测试绿。
 
-## Phase 5 · 域控 AD 集成（⑥，排后）
-- L06 protocols/LDAP 适配器 + L02 IAM 联邦（AD 账号登录，映射到三角色）。
-- 工单自动派发到 AD 账号（接 Phase 2 的 assignee）+ 通知到对应人。
-- **需 ADR**（IAM 联邦是新依赖边/新能力）。守住 ADR-0003：单组织 AD，不做多租户。
+## Phase 5 · 域控 AD 集成（⑥）✅ 已完成
+
+> [ADR-0014](../adr/0014-ad-ldap-federation.md)：IAM 认证联邦。
+> L02 Authenticator 抽象：LocalAuthenticator(本地) + LdapAuthenticator(AD/LDAP bind + 组→角色映射，
+> stub-first + 注入 bind 可测、lazy import ldap3、LDAP 不可达本地兜底)。配 LDAP_URL 即启用。
+> 工单自动派发：Responder 按 default_assignee(可为 AD 账号) 自动指派 + 留痕。
+> 登录走 rt.auth；/api/config 暴露 auth_mode；Settings 页只读展示。165 测试绿。
+
+---
+
+## ✅ 全部完成 —— 用户 8 问 + 5 期对照
+| # | 问题 | Phase |
+|---|---|---|
+| ① Agent 编排/管理 | ✅ | 1 |
+| ⑤ Prompt 热加载+CRUD | ✅ | 1+4 |
+| ⑧ 故障记录自动沉淀回流(飞轮) | ✅ | 1 |
+| ⑦ 协作驾驶舱 | ✅ | 2 |
+| ② 日志多源接入 | ✅ | 3.1 |
+| ③ Skills 管理 | ✅ | 3.2 |
+| ④ 仪表盘可视化 | ✅ | 4 |
+| ⑥ AD 登录+派单 | ✅ | 5 |
 
 ---
 

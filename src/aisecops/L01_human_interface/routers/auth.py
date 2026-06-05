@@ -20,12 +20,12 @@ class LoginIn(BaseModel):
 
 @router.post("/api/login")
 async def login(body: LoginIn) -> dict[str, str]:
-    """真用户校验（口令 scrypt 哈希；停用用户拒登）。成功签发会话令牌。"""
-    user = rt.users.verify(body.username, body.password)
-    if user is None:
+    """认证联邦（本地账号 / AD-LDAP，ADR-0014）；成功签发会话令牌。"""
+    principal = rt.auth.authenticate(body.username, body.password)
+    if principal is None:
         raise HTTPException(status_code=401, detail="用户名或密码错误，或账号已停用")
-    token = rt.sessions.issue(user.username, user.role)
-    return {"username": user.username, "role": user.role, "token": token}
+    token = rt.sessions.issue(principal.username, principal.role)
+    return {"username": principal.username, "role": principal.role, "token": token}
 
 
 @router.post("/api/logout")

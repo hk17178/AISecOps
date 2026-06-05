@@ -70,6 +70,15 @@ class Settings(BaseSettings):
     # 配置密钥主密钥（Fernet key）。留空用派生 dev key（仅开发/CI；生产必须配，C-9）
     master_key: str = ""
 
+    # ---- AD/LDAP 联邦登录（ADR-0014）----
+    # 留空 → 纯本地账号；配了 ldap_url + 模板 → 用 AD/LDAP（本地兜底）
+    ldap_url: str = ""  # 如 ldap://dc.corp:389
+    ldap_user_template: str = ""  # 如 uid={username},ou=people,dc=corp
+    ldap_role_map: str = ""  # JSON：AD 组→角色，如 {"SecAdmins":"管理员","SOC":"分析师"}
+
+    # 自动建的 HITL 工单默认派发给谁（可为 AD 账号）。留空不自动指派
+    default_assignee: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

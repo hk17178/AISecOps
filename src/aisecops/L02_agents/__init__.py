@@ -12,6 +12,12 @@ from .agent_config import (
     resolve_cross_check,
     seed_agent_configs,
 )
+from .auth_provider import (
+    Authenticator,
+    LdapAuthenticator,
+    LocalAuthenticator,
+    build_authenticator,
+)
 from .base import Agent, AgentContext, AgentResult, Task, sanitize_for_tag
 from .correlation import CorrelationAgent, CorrelationConclusion
 from .enrichment import EnrichmentAgent
@@ -81,6 +87,10 @@ __all__ = [
     "OrchestratorError",
     "Principal",
     "SessionStore",
+    "Authenticator",
+    "LocalAuthenticator",
+    "LdapAuthenticator",
+    "build_authenticator",
     "TriageAgent",
     "TriageVerdict",
     "InvestigationAgent",

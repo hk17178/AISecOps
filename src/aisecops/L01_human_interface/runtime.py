@@ -25,6 +25,7 @@ from aisecops.L02_agents import (
     Task,
     TriageAgent,
     TuningAgent,
+    build_authenticator,
     build_agent_config_store,
     build_channel_store,
     build_dispatch_rule_store,
@@ -210,7 +211,7 @@ class Runtime:
             "correlation": CorrelationAgent(),
             "enrichment": EnrichmentAgent(self.assets.get_by_host, self.iocs),  # CMDB 依赖注入(不直连 L11)
             "intel": IntelAgent(self.iocs),
-            "respond": ResponderAgent(self.tickets),
+            "respond": ResponderAgent(self.tickets, self.settings.default_assignee),
             "report": ReporterAgent(),
             "tuning": TuningAgent(self.kb),  # 反馈飞轮：结案沉淀知识
         }
@@ -242,10 +243,16 @@ class Runtime:
         if not self.adapters.all():
             seed_demo_adapters(self.adapters, self.settings.es_hosts)
 
-        # 用户与 RBAC（L02 IAM）+ 会话令牌（写端点鉴权）
+        # 用户与 RBAC（L02 IAM）+ 会话令牌（写端点鉴权）+ 认证联邦（本地 / AD-LDAP，ADR-0014）
         self.users = build_user_store(db_url)
         seed_demo_users(self.users)
         self.sessions = SessionStore()
+        self.auth = build_authenticator(
+            self.users,
+            ldap_url=self.settings.ldap_url,
+            ldap_user_template=self.settings.ldap_user_template,
+            ldap_role_map_json=self.settings.ldap_role_map,
+        )
 
 
 # 全局单例：所有 router 共享
