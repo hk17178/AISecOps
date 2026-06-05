@@ -15,7 +15,10 @@
 - Microsoft Purview AI 合规
 
 ## 当前状态
-🟢 部分 —— 已实现迷你 CMDB（资产 CRUD + 分诊按重要度富化，PG/内存）。security_assets / ai_compliance（C-3 Shadow AI 治理）/ cloud_resources / network_traffic 待补。
+🟢 部分 —— 已实现：迷你 CMDB（资产 CRUD + 分诊按重要度富化）；**ai_compliance（C-3 已满足）**——
+AI 资产清单 + 确定性合规检查引擎（对标生成式AI管理办法/EU AI Act 风险分级）+ Shadow AI 发现
+（比对平台在用 LLM provider 与已审批清单，治理自身 AI 用量）。均 PG/内存仓储。
+security_assets / cloud_resources / network_traffic 待补。
 
 ## 为什么 AI 模型合规是 2026 新增基线
 随着企业大量引入 LLM、智能体、Copilot，AI 模型本身成为攻击面。CrowdStrike 2025 已专门发布"AI Agent 安全 + Shadow AI 治理"产品线——这是 AISecOps 区别于传统 SOC 的代际特征。

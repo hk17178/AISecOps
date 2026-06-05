@@ -15,6 +15,7 @@ import Report from './pages/Report'
 import Cmdb from './pages/Cmdb'
 import Intel from './pages/Intel'
 import Knowledge from './pages/Knowledge'
+import AiCompliance from './pages/AiCompliance'
 import Agent from './pages/Agent'
 import Mcp from './pages/Mcp'
 import Prompt from './pages/Prompt'
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/cmdb" element={<Cmdb />} />
           <Route path="/intel" element={<Intel />} />
           <Route path="/knowledge" element={<Knowledge />} />
+          <Route path="/ai-compliance" element={<AiCompliance />} />
           <Route path="/agent" element={<Agent />} />
           <Route path="/mcp" element={<Mcp />} />
           <Route path="/prompt" element={<Prompt />} />

@@ -22,6 +22,7 @@ export const NAV: NavItem[] = [
   { group: '资产 · 情报', key: 'cmdb', label: '资产 CMDB', path: '/cmdb' },
   { group: '资产 · 情报', key: 'intel', label: '威胁情报', path: '/intel' },
   { group: '资产 · 情报', key: 'knowledge', label: '知识库 · RAG', path: '/knowledge', tag: 'RAG' },
+  { group: '资产 · 情报', key: 'ai-compliance', label: 'AI 资产合规', path: '/ai-compliance', tag: 'C-3' },
   { group: '平台', key: 'agent', label: 'AI Agent', path: '/agent' },
   { group: '平台', key: 'mcp', label: 'MCP 工具', path: '/mcp' },
   { group: '平台', key: 'prompt', label: 'Prompt 治理', path: '/prompt' },

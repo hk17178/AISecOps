@@ -65,7 +65,12 @@ from aisecops.L08_analytics_engines import (
 from aisecops.L09_data_platform.alert_store import build_alert_store, seed_demo_alerts
 from aisecops.L09_data_platform.event_store import build_event_store
 from aisecops.L09_data_platform.report_store import build_report_store
-from aisecops.L11_target_estate import build_asset_store, seed_demo_assets
+from aisecops.L11_target_estate import (
+    build_ai_asset_store,
+    build_asset_store,
+    seed_demo_ai_assets,
+    seed_demo_assets,
+)
 from aisecops.L12_core_support.audit import build_audit_log
 from aisecops.L12_core_support.config import Settings, get_settings
 from aisecops.L12_core_support.config_store import build_config_store
@@ -174,6 +179,10 @@ class Runtime:
         self.assets = build_asset_store(db_url)
         if not self.assets.all():
             seed_demo_assets(self.assets)
+
+        # AI 资产合规 / Shadow AI 治理（L11，C-3）
+        self.ai_assets = build_ai_asset_store(db_url)
+        seed_demo_ai_assets(self.ai_assets)
 
         # 威胁情报 IoC（L08）
         self.iocs = build_ioc_store(db_url)

@@ -11,6 +11,7 @@ from fastapi import FastAPI
 
 from .routers import (
     agents,
+    ai_compliance,
     alerts,
     assets,
     auth,
@@ -56,6 +57,7 @@ for _module in (
     intel,
     prompts,
     knowledge,
+    ai_compliance,
 ):
     app.include_router(_module.router)
 

@@ -132,6 +132,7 @@
 | **资产 · 情报** | 资产 CMDB | 资产清单 + 重要度 + 状态 |
 | | 威胁情报 | IoC 列表 |
 | | 知识库 · RAG | 非结构化语料 CRUD + 检索（召回→Reranker 重排→带出处），供分诊检索增强（L03） |
+| | AI 资产合规 | AI 资产清单 CRUD + 合规体检 + Shadow AI 发现（在用 LLM 未登记即影子，C-3，L11） |
 | **平台** | AI Agent | Orchestrator + 各 Agent 状态 |
 | | MCP 工具 | 工具适配（默认薄适配器，见 [ADR-0004](../adr/0004-l06-mcp-optional-thin-adapter.md)） |
 | | Prompt 治理 | Prompt 版本（git 管理） |
