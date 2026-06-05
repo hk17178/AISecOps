@@ -29,6 +29,7 @@ from aisecops.L02_agents import (
     seed_demo_tickets,
     seed_demo_users,
 )
+from aisecops.L03_ai_assets_rag import build_knowledge_base, seed_demo_knowledge
 from aisecops.L04_ai_assets_models import build_prompt_store, seed_demo_prompts
 from aisecops.L05_gateway.llm_gateway import (
     LLMGateway,
@@ -117,8 +118,19 @@ class Runtime:
         seed_agent_configs(self.agent_configs)
         # 审计链落 PG（C-23 不可篡改 + P-18 重启不丢）；无 DB 回退内存
         self.audit = build_audit_log(db_url)
+
+        # L03 知识库 + RAG（检索增强，C-7 Reranker 必备）；首启种案例，索引缺失则重建
+        self.kb = build_knowledge_base(db_url)
+        seed_demo_knowledge(self.kb)
+        if self.kb.vectors.count() == 0 and self.kb.store.all():
+            self.kb.reindex_all()
+
         self.ctx = AgentContext(
-            llm=self.gateway, tools=self.registry, agent_configs=self.agent_configs, audit=self.audit
+            llm=self.gateway,
+            tools=self.registry,
+            agent_configs=self.agent_configs,
+            audit=self.audit,
+            rag=self.kb,
         )
 
         # HITL 工单库；真威胁分诊会自动建单

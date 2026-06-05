@@ -18,6 +18,7 @@ from .routers import (
     dispatch,
     intel,
     investigation,
+    knowledge,
     prompts,
     reports,
     routing,
@@ -54,6 +55,7 @@ for _module in (
     assets,
     intel,
     prompts,
+    knowledge,
 ):
     app.include_router(_module.router)
 

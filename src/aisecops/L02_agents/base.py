@@ -12,6 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from aisecops.L03_ai_assets_rag import KnowledgeBase
 from aisecops.L05_gateway.llm_gateway import LLMGateway
 from aisecops.L06_mcp_servers import ToolRegistry
 from aisecops.L12_core_support.audit import AuditLog, AuditSink
@@ -58,6 +59,7 @@ class AgentContext:
     audit: AuditSink = field(default_factory=AuditLog)
     tools: ToolRegistry = field(default_factory=ToolRegistry)  # L06 工具（默认空，无富化）
     agent_configs: AgentConfigStore | None = None  # 运行时 Agent 配置（改了即时生效）
+    rag: KnowledgeBase | None = None  # L03 知识库（检索增强，默认无）
 
     def config_for(self, role: str) -> AgentConfig | None:
         """取某 Agent 的活配置（没接 store 则 None，用代码默认）。"""
