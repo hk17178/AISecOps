@@ -28,6 +28,7 @@ export const NAV: NavItem[] = [
   { group: '平台', key: 'mcp', label: 'MCP 工具', path: '/mcp' },
   { group: '平台', key: 'log-sources', label: '日志接入', path: '/log-sources' },
   { group: '平台', key: 'prompt', label: 'Prompt 治理', path: '/prompt' },
+  { group: '平台', key: 'skills', label: 'Skills · SOP', path: '/skills' },
   { group: '平台', key: 'cost', label: '模型 & 成本', path: '/cost' },
   { group: '平台', key: 'settings', label: '系统设置', path: '/settings' },
 ]

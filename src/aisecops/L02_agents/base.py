@@ -13,7 +13,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from aisecops.L03_ai_assets_rag import KnowledgeBase
-from aisecops.L04_ai_assets_models import PromptStore
+from aisecops.L04_ai_assets_models import PromptStore, SkillStore
 from aisecops.L05_gateway.llm_gateway import LLMGateway
 from aisecops.L06_mcp_servers import ToolRegistry
 from aisecops.L12_core_support.audit import AuditLog, AuditSink
@@ -62,6 +62,7 @@ class AgentContext:
     agent_configs: AgentConfigStore | None = None  # 运行时 Agent 配置（改了即时生效）
     rag: KnowledgeBase | None = None  # L03 知识库（检索增强，默认无）
     prompts: PromptStore | None = None  # L04 Prompt 治理（热加载 active 版本）
+    skills: SkillStore | None = None  # L04 Skills(SOP) 库（调查附可照做的标准步骤）
 
     def config_for(self, role: str) -> AgentConfig | None:
         """取某 Agent 的活配置（没接 store 则 None，用代码默认）。"""

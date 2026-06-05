@@ -25,6 +25,7 @@ from .routers import (
     prompts,
     reports,
     routing,
+    skills,
     soar,
     system,
     tickets,
@@ -62,6 +63,7 @@ for _module in (
     ai_compliance,
     cockpit,
     log_sources,
+    skills,
 ):
     app.include_router(_module.router)
 

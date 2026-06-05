@@ -20,7 +20,9 @@
 - 360 安全大模型
 
 ## 当前状态
-🟢 部分 —— Prompt 治理已实现（版本化编辑/历史/回滚，PG/内存）。LLM 群经 L05 接入；DSLM 群按 ADR-0003 延后 P3+；RAG 知识库见 docs/specs/knowledge-base.md。
+🟢 部分 —— 已实现：Prompt 治理（版本化编辑/历史/回滚 + 热加载进 Agent）；**Skills(SOP) 库**（ADR-0013：
+结构化标准操作流程，按场景自动附进调查）。均 PG/内存仓储。LLM 群经 L05 接入；DSLM 群按 ADR-0003 延后 P3+；
+RAG 知识库见 docs/specs/knowledge-base.md。
 
 ## 为什么 DSLM 是必须的
 业界共识："**LLM + DSLM + ML + 统计 + 静态分析**" 多模型混合是 AISecOps 的灵魂。纯 LLM 兜底是公认的反模式：成本高、可解释差、领域准确率不达标。

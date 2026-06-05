@@ -21,6 +21,7 @@ import Agent from './pages/Agent'
 import Mcp from './pages/Mcp'
 import LogSources from './pages/LogSources'
 import Prompt from './pages/Prompt'
+import Skills from './pages/Skills'
 import Cost from './pages/Cost'
 import Settings from './pages/Settings'
 
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/mcp" element={<Mcp />} />
           <Route path="/log-sources" element={<LogSources />} />
           <Route path="/prompt" element={<Prompt />} />
+          <Route path="/skills" element={<Skills />} />
           <Route path="/cost" element={<Cost />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

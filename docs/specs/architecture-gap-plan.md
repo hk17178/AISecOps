@@ -76,10 +76,13 @@
 > `/api/tickets/{id}/assign`+`/progress`（鉴权+审计）；`/api/cockpit` 聚合(在办/按人负载/超时)。
 > 前端「协作驾驶舱」工作板：汇总卡 + 在办看板(超时标红+内联指派/进度) + 按人负载。155 测试绿。
 
-## Phase 3 · 数据/能力底座（② + ③）
-- **② 日志多源接入**：L06 data_sources 适配器框架（ES/Zabbix/Syslog/Kafka…，薄适配器优先 ADR-0004）+「日志接入管理」页（数据源 CRUD/连通/解析/状态），对标 Splunk「Data inputs」。激活 ADR-0009 留的 L10 接入。
-- **③ Skills(SOP)**：**先写 ADR** 厘清 Skills(L04 SOP) vs SOAR Playbook(L02 自动化处置) vs Prompt(L04) vs 知识库(L03) 边界 → 再建 Skills 库 + Agent 调用 + 管理页。
-- DoD：能在 UI 加一个 Zabbix 数据源并连通测试；Skills 可被 Agent 调用且可管理。
+## Phase 3 · 数据/能力底座（② + ③）✅ 已完成
+
+> **3.1 ②日志多源接入** ✅：L06 加种类目录(ES/OpenSearch/Zabbix/Syslog/Kafka/Loki/generic)+QUERYABLE 标记；
+> `/api/log-sources` 聚焦视图 + 前端「日志接入」页(登记/连通测试/启停/删除)，对标 Splunk「Data inputs」。
+> 守 ADR-0009：接入登记+连通是真的，每种查询适配器随用随接（ES 已可查询，其余诚实标"已登记"）。
+> **3.2 ③Skills(SOP)** ✅：[ADR-0013](../adr/0013-skills-sop-boundary.md) 厘清 Skill/Playbook/Prompt/知识库边界；
+> L04 SkillStore + match_skills；Investigation 按场景自动附 SOP 步骤；前端「Skills·SOP」管理页。159 测试绿。
 
 ## Phase 4 · 可视化快赢（④ + ⑤剩余）
 - **④ 仪表盘增强**，建议补：告警趋势(时序) · 按严重度/来源/Kill-Chain阶段分布 · **MTTD/MTTR** · 待研判队列+SLA · HITL 工单看板 · 失陷主机 Top · Agent 活动量 · 成本趋势 · 降噪率趋势 · 飞轮沉淀量。

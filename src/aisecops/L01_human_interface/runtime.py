@@ -40,7 +40,12 @@ from aisecops.L02_agents import (
     seed_demo_users,
 )
 from aisecops.L03_ai_assets_rag import build_knowledge_base, seed_demo_knowledge
-from aisecops.L04_ai_assets_models import build_prompt_store, seed_demo_prompts
+from aisecops.L04_ai_assets_models import (
+    build_prompt_store,
+    build_skill_store,
+    seed_demo_prompts,
+    seed_demo_skills,
+)
 from aisecops.L05_gateway.llm_gateway import (
     LLMGateway,
     ScenarioRouter,
@@ -226,6 +231,11 @@ class Runtime:
         self.prompts = build_prompt_store(db_url)
         seed_demo_prompts(self.prompts)
         self.ctx.prompts = self.prompts
+
+        # Skills(SOP) 库（L04，ADR-0013）；注入 ctx → 调查附可照做的标准步骤
+        self.skills = build_skill_store(db_url)
+        seed_demo_skills(self.skills)
+        self.ctx.skills = self.skills
 
         # MCP 工具适配器（L06）
         self.adapters = build_adapter_store(db_url)

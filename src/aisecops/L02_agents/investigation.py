@@ -10,6 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from aisecops.L04_ai_assets_models import match_skills
 from aisecops.L05_gateway.llm_gateway import Message, Role
 from aisecops.L08_analytics_engines import (
     build_attack_graph,
@@ -122,6 +123,12 @@ class InvestigationAgent(Agent):
             "ueba": [r.model_dump() for r in risks[:5]],
             "compromise": compromise.model_dump(),
         }
+        # L04 Skills：匹配适用 SOP，给分析师可照做的标准步骤（C-25 用既有 SOP 而非现编）
+        if ctx.skills is not None:
+            sop_text = f"{question} {kc.summary} {' '.join(str(log) for log in logs)}"
+            matched = match_skills(sop_text, ctx.skills.all())
+            if matched:
+                data["sop"] = [{"name": s.name, "category": s.category, "steps": s.steps} for s in matched]
         ctx.audit.append(
             actor="investigation",
             action="investigate",
