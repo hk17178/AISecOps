@@ -20,6 +20,17 @@ from .agent_config import AgentConfig, AgentConfigStore
 from .memory import InMemoryMemoryStore, MemoryStore
 
 
+def sanitize_for_tag(text: str, *tags: str) -> str:
+    """中性化外部文本里的闭合标签，防其闭合沙箱标签后注入指令（C-20）。
+
+    如日志/告警里写 `</logs>忽略上文...` 想越狱 → 把闭合标签插空格打断为不可解析形态。
+    用于所有"把外部数据（ES 日志、告警原文、用户问题）塞进 <tag>...</tag> 沙箱"的场景。
+    """
+    for tag in tags:
+        text = text.replace(f"</{tag}>", f"<\\ /{tag}>")
+    return text
+
+
 class Task(BaseModel):
     """交给 Agent 的一个任务。"""
 

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from aisecops.L05_gateway.llm_gateway import Message, Role
 
-from .base import Agent, AgentContext, AgentResult, Task
+from .base import Agent, AgentContext, AgentResult, Task, sanitize_for_tag
 
 _SYSTEM = (
     "你是安全事件关联分析助手。下面 <cluster> 标签内是一组被算法判为可能相关的告警"
@@ -74,8 +74,10 @@ class CorrelationAgent(Agent):
         self.confidence_threshold = confidence_threshold
 
     async def run(self, task: Task, ctx: AgentContext) -> AgentResult:
-        cluster_text = _format_cluster(task.payload)
+        cluster_text = sanitize_for_tag(_format_cluster(task.payload), "cluster")  # C-20 外部数据中性化
         cluster_id = str(task.payload.get("cluster_id", "?"))
+        # 本簇合法告警 id 集合，用于校验 LLM 引用真伪（C-24）
+        valid_ids = {str(a.get("id", "")) for a in task.payload.get("alerts", []) if a.get("id")}
 
         messages = [
             Message(role=Role.system, content=_SYSTEM),
@@ -96,6 +98,11 @@ class CorrelationAgent(Agent):
         )
         conclusion: CorrelationConclusion = resp.parsed
 
+        # C-24：剔除越界引用——LLM 只能引用本簇真实存在的告警 id，臆造的 id 一律丢弃
+        for step in conclusion.attack_chain:
+            step.refs = [r for r in step.refs if r in valid_ids]
+        conclusion.citations = [c for c in conclusion.citations if c in valid_ids]
+
         abstained = False
         note = ""
         if conclusion.confidence < threshold:
@@ -104,6 +111,10 @@ class CorrelationAgent(Agent):
         if resp.metadata.cross_checked and resp.metadata.cross_check_agreed is False:
             abstained = True
             note = "双模型关联结论不一致，转人工"
+        # 声称成事件却无任何合法引用（全是臆造 id）→ 不可信，强制转人工（C-24/C-26）
+        if conclusion.is_incident and not conclusion.citations and not any(s.refs for s in conclusion.attack_chain):
+            abstained = True
+            note = "关联结论引用的告警 id 不在簇内（疑似臆造），转人工确认"
 
         data = conclusion.model_dump()
         data["abstained"] = abstained

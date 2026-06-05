@@ -11,6 +11,8 @@ from abc import ABC, abstractmethod
 
 import httpx
 
+from aisecops.L12_core_support.net_guard import ssrf_guard
+
 # 各渠道的消息体格式（都是 POST JSON）
 CHANNEL_KINDS = ("wechat", "dingtalk", "webhook")
 
@@ -48,6 +50,10 @@ class HttpNotifier(Notifier):
     def send(self, kind: str, url: str, title: str, content: str) -> tuple[bool, str, str]:
         if not url:
             return False, "渠道未配置 webhook 地址", ""
+        # C-22 防 SSRF：webhook 应指向外部，拒绝指向内网/回环/云元数据（除非显式白名单）
+        ok, reason = ssrf_guard(url, allow_private=False)
+        if not ok:
+            return False, reason, ""
         try:
             resp = httpx.post(url, json=_payload(kind, title, content), timeout=self.timeout)
             resp.raise_for_status()

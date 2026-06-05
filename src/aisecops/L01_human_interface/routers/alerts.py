@@ -7,8 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 from aisecops.L02_agents import Principal
 from aisecops.L08_analytics_engines import match_iocs
-from aisecops.L09_data_platform.alert_store import alert_stats
-from aisecops.L10_data_collection.ingest import normalize_alert
+from aisecops.L09_data_platform.alert_store import alert_stats, dedupe_stats
 
 from ..auth_deps import WRITE, require_role
 from ..runtime import rt
@@ -24,30 +23,11 @@ class IngestIn(BaseModel):
 
 @router.post("/api/ingest/alert")
 async def ingest_alert(body: IngestIn, _: Principal = Depends(require_role(*WRITE))) -> dict[str, Any]:
-    """L10 入库 → L08 降噪 → L09 告警库。
+    """告警接入：归一化 → 威胁情报匹配 → 降噪 → 入库。
 
-    入库前跑降噪：抑制规则命中 → 标记抑制入库；同指纹时间窗内 → 并入计数；
-    否则新建。返回结果带 deduped 说明（可解释）。
+    流水线已下沉到 L07 IngestService（审查 #23：表现层不编排数据面），这里只调出口。
     """
-    fields = normalize_alert(body.model_dump())
-    # 威胁情报匹配：命中 IoC 即给情报计数（标红在列表里动态体现）
-    for ioc in match_iocs(fields, rt.iocs.all()):
-        rt.iocs.bump_hit(ioc.id)
-    decision = rt.dedup.evaluate(fields, rt.alerts.recent(500))
-    if decision.action == "merge":
-        merged = rt.alerts.bump(decision.target_id)
-        if merged is not None:
-            return {**merged.model_dump(), "deduped": "merged", "into": decision.target_id, "reason": decision.reason}
-        # 并入目标已不存在 → 退化为新建
-        decision.action = "new"
-    if decision.action == "suppress":
-        rt.supp_rules.bump_hit(decision.rule_id)
-        fields.update(fingerprint=decision.fingerprint, suppressed=True, suppress_reason=decision.reason)
-        alert = rt.alerts.add(fields)
-        return {**alert.model_dump(), "deduped": "suppressed", "reason": decision.reason}
-    fields["fingerprint"] = decision.fingerprint
-    alert = rt.alerts.add(fields)
-    return {**alert.model_dump(), "deduped": "new"}
+    return rt.ingest.ingest(body.model_dump())
 
 
 @router.get("/api/alerts")
@@ -70,15 +50,8 @@ async def get_alerts(include_suppressed: bool = False) -> dict[str, Any]:
 
 @router.get("/api/dedupe/stats")
 async def get_dedupe_stats() -> dict[str, Any]:
-    """降噪效果（真实可解释）：原始事件数 vs 降噪后留存 + 各级贡献 + 规则命中。"""
-    alerts = rt.alerts.all()
-    rows = len(alerts)
-    merged_away = sum(max(0, a.count - 1) for a in alerts)  # 精确去重+时间窗归并折叠掉的
-    suppressed_rows = sum(1 for a in alerts if a.suppressed)
-    active = sum(1 for a in alerts if not a.suppressed)
-    raw_total = merged_away + rows  # 进入入口的原始事件总数
-    after = active  # 分析师实际要看的（降噪后）
-    reduction = round((1 - after / raw_total) * 100) if raw_total else 0
+    """降噪效果（真实可解释）：降噪口径走 L09 dedupe_stats 单一事实源 + 规则命中明细。"""
+    stats = dedupe_stats(rt.alerts)  # 口径与报表中心一致（审查 #24）
     rules = rt.supp_rules.all()
     suppressed_recent = [
         {"id": a.id, "host": a.host, "title": a.title, "reason": a.suppress_reason}
@@ -86,13 +59,7 @@ async def get_dedupe_stats() -> dict[str, Any]:
         if a.suppressed
     ][:20]
     return {
-        "raw_total": raw_total,
-        "after": after,
-        "reduction_pct": reduction,
-        "breakdown": {
-            "exact_window_merged": merged_away,
-            "suppressed": suppressed_rows,
-        },
+        **stats,
         "rules": [r.model_dump() for r in rules],
         "rules_total": len(rules),
         "rules_enabled": sum(1 for r in rules if r.enabled),

@@ -9,24 +9,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Any
-from urllib.parse import urlparse
 
 import httpx
 from pydantic import BaseModel
 
-_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+from aisecops.L12_core_support.net_guard import is_outbound_url, ssrf_guard
 
-
-def _is_outbound(url: str) -> bool:
-    """端点是否出域（公网）。内网/本地不出域。与 L05 出域判定同口径（C-32）。"""
-    host = (urlparse(url).hostname or "").lower()
-    if host in _LOCAL_HOSTS or host.startswith(("10.", "192.168.")):
-        return False
-    if host.startswith("172."):
-        parts = host.split(".")
-        if len(parts) >= 2 and parts[1].isdigit() and 16 <= int(parts[1]) <= 31:
-            return False
-    return True
+# 出域判定与 L05 同口径（C-32），统一走 L12 net_guard（修正 10.example.com 误判）
+_is_outbound = is_outbound_url
 
 
 # 六大类（ADR-0004）：数据源 / 安全工具 / 协议 / 厂商 / AIOps / 自定义
@@ -186,6 +176,10 @@ def test_connectivity(adapter: Adapter, outbound_enabled: bool, now: str) -> str
         return "未配置"
     if _is_outbound(adapter.endpoint) and not outbound_enabled:
         return "跳过（出域关）"
+    # C-22 防 SSRF：内部数据源(ES/SIEM 多在内网)放行私网，但仍拒链路本地/云元数据(169.254.x)
+    ok, _reason = ssrf_guard(adapter.endpoint, allow_private=True)
+    if not ok:
+        return "拒绝（SSRF 防护）"
     try:
         resp = httpx.get(adapter.endpoint, timeout=3.0)
         return "已连" if resp.status_code < 500 else "失败"

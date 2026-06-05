@@ -22,4 +22,4 @@
 - 深信服 Omni-Command XDR
 
 ## 当前状态
-🟡 占位 —— 仅目录与本说明，未实现
+🟢 已实现 4 个 SEC 出口（满足 C-1「至少 4」）：alert_triage / investigation / correlation / ingest，外加 reporting。threat_hunting / ueba / vuln_compliance 待补。

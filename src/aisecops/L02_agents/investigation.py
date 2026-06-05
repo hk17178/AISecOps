@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from aisecops.L05_gateway.llm_gateway import Message, Role
 
-from .base import Agent, AgentContext, AgentResult, Task
+from .base import Agent, AgentContext, AgentResult, Task, sanitize_for_tag
 
 _SYSTEM = (
     "你是安全事件调查助手。基于给定日志和问题，给出事件摘要与攻击链推断。"
@@ -61,11 +61,13 @@ class InvestigationAgent(Agent):
         if ctx.tools.log_source is not None and host:
             logs = await ctx.tools.log_source.search_logs(host=host, size=10)
         timeline = _timeline(logs)
-        logs_text = "\n".join(str(log) for log in logs) or "(无相关日志)"
+        # C-20：日志与用户问题都是外部输入，中性化闭合标签防越狱
+        logs_text = sanitize_for_tag("\n".join(str(log) for log in logs) or "(无相关日志)", "logs")
+        safe_question = sanitize_for_tag(question, "logs")
 
         messages = [
             Message(role=Role.system, content=_SYSTEM),
-            Message(role=Role.user, content=f"问题：{question}\n<logs>\n{logs_text}\n</logs>"),
+            Message(role=Role.user, content=f"问题：{safe_question}\n<logs>\n{logs_text}\n</logs>"),
         ]
         resp = await ctx.llm.call(
             messages, scenario="L07/investigation", response_model=InvestigationVerdict, agent_name=self.role

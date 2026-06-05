@@ -15,4 +15,4 @@
 - 各家 CMDB 系统
 
 ## 当前状态
-🟡 占位 —— 仅目录与本说明，未实现
+🟢 部分 —— 已实现横切核心：secrets（Fernet 加密 + scrypt 口令哈希 + 生产 fail-closed）/ config（DB 覆盖 .env）/ db（PG 连接池）/ audit（哈希链，可落 PG）/ net_guard（出域判定 + SSRF 防护）/ observability（OTel）。scheduling 待补。

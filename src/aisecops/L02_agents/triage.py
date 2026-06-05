@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from aisecops.L05_gateway.llm_gateway import Message, Role
 
-from .base import Agent, AgentContext, AgentResult, Task
+from .base import Agent, AgentContext, AgentResult, Task, sanitize_for_tag
 
 _SYSTEM = (
     "你是安全告警分诊助手。把告警判定为「真威胁 / 误报 / 待研判」之一，"
@@ -51,7 +51,7 @@ class TriageAgent(Agent):
         self.confidence_threshold = confidence_threshold
 
     async def run(self, task: Task, ctx: AgentContext) -> AgentResult:
-        alert_text = _format_alert(task.payload)
+        alert_text = sanitize_for_tag(_format_alert(task.payload), "alert")
         host = str(task.payload.get("host", "unknown"))
 
         # L06 富化：查 ES 该主机最近日志，作为研判证据（ADR-0009 就地查询）
@@ -60,7 +60,7 @@ class TriageAgent(Agent):
         if log_source is not None and host != "unknown":
             logs = await log_source.search_logs(host=host, size=5)
             if logs:
-                log_text = "\n".join(str(log) for log in logs)
+                log_text = sanitize_for_tag("\n".join(str(log) for log in logs), "related_logs", "alert")
                 user_content += f"\n<related_logs>\n{log_text}\n</related_logs>"
 
         # 活配置（改了即时生效）：阈值 / cross-check 模式；无 store 则用代码默认

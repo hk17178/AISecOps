@@ -49,9 +49,11 @@ from aisecops.L07_secops_capabilities import (
     InvestigationService,
     build_alert_triage_service,
     build_correlation_service,
+    build_ingest_service,
     build_investigation_service,
     build_reporting_service,
 )
+from aisecops.L10_data_collection.ingest import normalize_alert
 from aisecops.L08_analytics_engines import (
     DedupEngine,
     build_ioc_store,
@@ -165,6 +167,9 @@ class Runtime:
         self.iocs = build_ioc_store(db_url)
         if not self.iocs.all():
             seed_demo_iocs(self.iocs)
+
+        # 告警接入出口（L07）：归一化+情报+降噪+入库流水线，从表现层下沉（审查 #23）
+        self.ingest = build_ingest_service(normalize_alert, self.iocs, self.dedup, self.alerts, self.supp_rules)
 
         # Prompt 治理（L04）
         self.prompts = build_prompt_store(db_url)

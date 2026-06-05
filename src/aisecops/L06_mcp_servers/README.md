@@ -39,7 +39,7 @@ L06 对外只暴露一个**统一工具注册表接口**，L02 Agent 只认这�
 - Anthropic MCP 官方协议规范
 
 ## 当前状态
-🟡 占位 —— 仅目录与本说明，未实现
+🟢 部分 —— 已实现 ToolRegistry + ES 薄适配器（log_source）+ Notifier（出站经 L12 SSRF 白名单，C-22）+ 适配器 CRUD/启停/连通测试。六大类其余按需接入。
 
 ## 为什么不再把 L06 当"平台底座"（ADR-0004）
 旧版这里写的是"Agent Marketplace + MCP 连接器生态 / 决定平台能不能开放"。但 [ADR-0003](../../../docs/adr/0003-self-use-positioning.md) 把项目定位为**自建自用**后，消费方只有一个（自己的 L02 Agent），"写一次任何客户端都能用"的标准化收益基本蒸发，却照付上下文膨胀 + 完整 Server 的开发成本。

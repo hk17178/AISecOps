@@ -17,7 +17,7 @@
 - 阿里云日志服务 SLS
 
 ## 当前状态
-🟡 占位 —— 仅目录与本说明，未实现
+🟢 部分 —— 已实现衍生数据仓储：告警库 / 安全事件库 / 报表库（PG/内存，含 dedupe_stats 降噪口径单一事实源）。数据中台（ingest/etl/feature_store/data_lake）按 ADR-0009 延后，日志主存 ES 就地查询。
 
 ## 为什么 SQLite 不行
 itops-agent-platform 用 SQLite 单库——这是玩具级。安全 telemetry 是 TB/PB 级，必须企业级数据中台。

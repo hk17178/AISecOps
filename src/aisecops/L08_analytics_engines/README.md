@@ -27,7 +27,7 @@
 - 安恒 AiLPHA XSIAM
 
 ## 当前状态
-🟡 占位 —— 仅目录与本说明，未实现
+🟢 部分 —— 已实现：降噪（指纹去重+时间窗归并+抑制规则）/ 并查集关联聚簇 / IoC 匹配。安全分析算法（attack_graph / kill_chain / ueba_analytics / compromise_judgment，C-2）待补。
 
 ## 为什么不能只靠 LLM
 "安全分析半边"是 AISecOps 的灵魂。攻击图、Kill Chain、UEBA 这些都需要专用算法（图算法、序列模型、统计基线），LLM 不能替代——这也是 itops-agent-platform 那种"纯 LLM"方案永远成不了 AISecOps 的根本原因。

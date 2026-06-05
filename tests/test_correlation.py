@@ -12,6 +12,26 @@ def _a(id_: str, host: str, title: str, ts: str = "2026-06-04 17:30:00", suppres
     return Alert(id=id_, ts=ts, host=host, title=title, source="EDR", suppressed=suppressed)
 
 
+async def test_correlation_drops_fabricated_refs_and_abstains() -> None:
+    # LLM 臆造不在簇内的告警 id → 引用被剔除，且声称成事件却无合法引用 → 强制 abstain（#11/C-24）
+    from aisecops.L02_agents import AgentContext, CorrelationAgent, Task
+    from aisecops.L05_gateway.llm_gateway import LLMGateway, StubProvider
+
+    canned = (
+        '{"is_incident": true, "title": "X", "severity": "高", "impact": "y", "confidence": 0.95, '
+        '"attack_chain": [{"step": "s", "detail": "d", "refs": ["ALERT-9999"]}], "citations": ["ALERT-9999"]}'
+    )
+    ctx = AgentContext(llm=LLMGateway([StubProvider(canned=canned)]))
+    task = Task(
+        kind="correlation",
+        payload={"cluster_id": "C1", "alerts": [{"id": "ALERT-0001", "host": "h", "title": "t"}]},
+    )
+    result = await CorrelationAgent().run(task, ctx)
+    assert result.data["citations"] == []  # 越界引用被剔除
+    assert result.data["attack_chain"][0]["refs"] == []
+    assert result.abstained is True  # 无合法引用却称成事件 → 转人工
+
+
 def test_cluster_by_same_host() -> None:
     alerts = [
         _a("ALERT-0001", "WIN-7", "横向移动"),

@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from aisecops.L02_agents import Principal
-from aisecops.L09_data_platform.alert_store import alert_stats
+from aisecops.L09_data_platform.alert_store import alert_stats, dedupe_stats
 
 from ..auth_deps import WRITE, require_role
 from ..runtime import rt
@@ -18,12 +18,7 @@ router = APIRouter()
 
 def _collect_report_data(kind: str, event_id: str = "") -> dict[str, Any]:
     """从各真实 store 汇总报告数据（确定性，不编造）。"""
-    all_alerts = rt.alerts.all()
-    rows = len(all_alerts)
-    merged_away = sum(max(0, a.count - 1) for a in all_alerts)
-    active = [a for a in all_alerts if not a.suppressed]
-    raw_total = merged_away + rows
-    reduction = round((1 - len(active) / raw_total) * 100) if raw_total else 0
+    reduction = dedupe_stats(rt.alerts)["reduction_pct"]  # 与降噪页同口径（审查 #24）
     stats = alert_stats(rt.alerts)
     budget = rt.gateway.budget
     now = datetime.now(timezone.utc)

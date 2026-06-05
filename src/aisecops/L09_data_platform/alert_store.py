@@ -259,6 +259,26 @@ def alert_stats(store: AlertStore) -> dict[str, Any]:
     }
 
 
+def dedupe_stats(store: AlertStore) -> dict[str, Any]:
+    """降噪口径（单一事实源，审查 #24）：原始事件数 vs 降噪后留存 + 折叠/抑制明细。
+
+    alerts 路由与报表中心都用它，避免两处各算一遍口径分裂。
+    """
+    alerts = store.all()
+    rows = len(alerts)
+    merged_away = sum(max(0, a.count - 1) for a in alerts)  # 精确去重+时间窗归并折叠掉的
+    suppressed_rows = sum(1 for a in alerts if a.suppressed)
+    active = sum(1 for a in alerts if not a.suppressed)
+    raw_total = merged_away + rows  # 进入入口的原始事件总数
+    reduction = round((1 - active / raw_total) * 100) if raw_total else 0
+    return {
+        "raw_total": raw_total,
+        "after": active,
+        "reduction_pct": reduction,
+        "breakdown": {"exact_window_merged": merged_away, "suppressed": suppressed_rows},
+    }
+
+
 def seed_demo_alerts(store: AlertStore) -> None:
     """放一批演示样例进真 store（仅初始数据是样例，存储/聚合都是真）。"""
     samples: list[dict[str, Any]] = [
