@@ -6,28 +6,46 @@ C-8 铁律：任何"写"动作默认要人审。真威胁研判 → 自动建 HI
 
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+PROGRESS = ("待处理", "处理中", "已完成", "已挂起")
+# SLA 时限（小时），按风险定（ADR-0012）
+_SLA_HOURS = {"高": 4, "中": 24, "低": 48}
 
 
 class Ticket(BaseModel):
-    """一张 HITL 审批工单。"""
+    """一张 HITL 工单（审批态 + 协作态，ADR-0012）。"""
 
     id: str
     action: str  # 隔离主机 / 封禁 IP / 禁用账号
     target: str
     risk: str = "高"  # 高 / 中
-    status: str = "待审"  # 待审 / 已批准 / 已驳回
+    status: str = "待审"  # 审批态：待审 / 已批准 / 已驳回
     source_alert: str = ""
     ts: str
     # 审批留痕：谁、什么时候、为什么
     reason: str = ""
     decided_by: str = ""
     decided_at: str = ""
+    # 协作态（驾驶舱，ADR-0012）：谁在处理 / 进度 / SLA 截止 / 处理时间线
+    assignee: str = ""
+    progress: str = "待处理"  # 待处理 / 处理中 / 已完成 / 已挂起
+    sla_due: str = ""
+    notes: list[dict[str, str]] = Field(default_factory=list)  # [{ts, author, text}]
+
+
+def _fmt(dt: datetime) -> str:
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _sla_due(now: datetime, risk: str) -> str:
+    return _fmt(now + timedelta(hours=_SLA_HOURS.get(risk, 24)))
 
 
 class TicketError(Exception):
@@ -52,6 +70,16 @@ class TicketStore(ABC):
     def pending_count(self) -> int:
         raise NotImplementedError
 
+    @abstractmethod
+    def assign(self, ticket_id: str, assignee: str, actor: str = "") -> Ticket:
+        """指派处理人（协作态，ADR-0012）。"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_progress(self, ticket_id: str, progress: str, note: str, author: str) -> Ticket:
+        """更新处理进度并追加一条时间线。"""
+        raise NotImplementedError
+
 
 def _default_clock() -> datetime:
     return datetime.now(timezone.utc)
@@ -64,19 +92,43 @@ class InMemoryTicketStore(TicketStore):
 
     def create(self, action: str, target: str, risk: str = "高", source_alert: str = "") -> Ticket:
         seq = len(self._tickets) + 1
+        now = self._clock()
         ticket = Ticket(
             id=f"TKT-{200 + seq}",
             action=action,
             target=target,
             risk=risk,
             source_alert=source_alert,
-            ts=self._clock().strftime("%Y-%m-%d %H:%M:%S"),
+            ts=_fmt(now),
+            sla_due=_sla_due(now, risk),
         )
         self._tickets.append(ticket)
         return ticket
 
     def all(self) -> list[Ticket]:
         return list(reversed(self._tickets))
+
+    def _get(self, ticket_id: str) -> Ticket:
+        for t in self._tickets:
+            if t.id == ticket_id:
+                return t
+        raise TicketError(f"工单 {ticket_id} 不存在")
+
+    def assign(self, ticket_id: str, assignee: str, actor: str = "") -> Ticket:
+        t = self._get(ticket_id)
+        t.assignee = assignee
+        if t.progress == "待处理":
+            t.progress = "处理中"
+        t.notes.append({"ts": _fmt(self._clock()), "author": actor or "系统", "text": f"指派给 {assignee}"})
+        return t
+
+    def update_progress(self, ticket_id: str, progress: str, note: str, author: str) -> Ticket:
+        t = self._get(ticket_id)
+        if progress in PROGRESS:
+            t.progress = progress
+        text = note.strip() or f"进度更新为「{t.progress}」"
+        t.notes.append({"ts": _fmt(self._clock()), "author": author, "text": text})
+        return t
 
     def decide(self, ticket_id: str, status: str, reason: str = "", actor: str = "") -> Ticket:
         for t in self._tickets:
@@ -97,7 +149,10 @@ class InMemoryTicketStore(TicketStore):
 class PgTicketStore(TicketStore):
     """PostgreSQL 实现（持久化，P-18）。id 由 seq 派生（TKT-{200+seq}）。"""
 
-    _COLS = "seq, action, target, risk, status, source_alert, ts, reason, decided_by, decided_at"
+    _COLS = (
+        "seq, action, target, risk, status, source_alert, ts, reason, decided_by, decided_at, "
+        "assignee, progress, sla_due, notes"
+    )
 
     def __init__(self, database_url: str, clock: Callable[[], datetime] = _default_clock) -> None:
         from aisecops.L12_core_support.db import get_pool
@@ -111,6 +166,14 @@ class PgTicketStore(TicketStore):
                 "status text, source_alert text, ts text, reason text, "
                 "decided_by text, decided_at text)"
             )
+            # 协作字段（ADR-0012）：对既有表平滑加列
+            for col, ddl in (
+                ("assignee", "text DEFAULT ''"),
+                ("progress", "text DEFAULT '待处理'"),
+                ("sla_due", "text DEFAULT ''"),
+                ("notes", "text DEFAULT '[]'"),
+            ):
+                conn.execute(f"ALTER TABLE tickets ADD COLUMN IF NOT EXISTS {col} {ddl}")
 
     @staticmethod
     def _to_ticket(r: Any) -> Ticket:
@@ -125,6 +188,10 @@ class PgTicketStore(TicketStore):
             reason=r[7],
             decided_by=r[8],
             decided_at=r[9],
+            assignee=(r[10] or "") if len(r) > 10 else "",
+            progress=(r[11] or "待处理") if len(r) > 11 else "待处理",
+            sla_due=(r[12] or "") if len(r) > 12 else "",
+            notes=json.loads(r[13]) if len(r) > 13 and r[13] else [],
         )
 
     @staticmethod
@@ -135,13 +202,15 @@ class PgTicketStore(TicketStore):
             return -1
 
     def create(self, action: str, target: str, risk: str = "高", source_alert: str = "") -> Ticket:
-        ts = self._clock().strftime("%Y-%m-%d %H:%M:%S")
+        now = self._clock()
+        ts = _fmt(now)
+        sla = _sla_due(now, risk)
         with self._pool.connection() as conn:
             row = conn.execute(
                 "INSERT INTO tickets (action, target, risk, status, source_alert, ts, "
-                "reason, decided_by, decided_at) VALUES (%s,%s,%s,'待审',%s,%s,'','','') "
-                "RETURNING seq",
-                (action, target, risk, source_alert, ts),
+                "reason, decided_by, decided_at, assignee, progress, sla_due, notes) "
+                "VALUES (%s,%s,%s,'待审',%s,%s,'','','','','待处理',%s,'[]') RETURNING seq",
+                (action, target, risk, source_alert, ts, sla),
             ).fetchone()
         seq = int(row[0]) if row else 0
         return Ticket(
@@ -152,6 +221,7 @@ class PgTicketStore(TicketStore):
             status="待审",
             source_alert=source_alert,
             ts=ts,
+            sla_due=sla,
         )
 
     def all(self) -> list[Ticket]:
@@ -179,6 +249,38 @@ class PgTicketStore(TicketStore):
         with self._pool.connection() as conn:
             row = conn.execute("SELECT count(*) FROM tickets WHERE status='待审'").fetchone()
         return int(row[0]) if row else 0
+
+    def _fetch(self, seq: int) -> Ticket:
+        with self._pool.connection() as conn:
+            row = conn.execute(f"SELECT {self._COLS} FROM tickets WHERE seq=%s", (seq,)).fetchone()
+        if row is None:
+            raise TicketError("工单不存在")
+        return self._to_ticket(row)
+
+    def assign(self, ticket_id: str, assignee: str, actor: str = "") -> Ticket:
+        seq = self._seq_of(ticket_id)
+        t = self._fetch(seq)
+        notes = [*t.notes, {"ts": _fmt(self._clock()), "author": actor or "系统", "text": f"指派给 {assignee}"}]
+        progress = "处理中" if t.progress == "待处理" else t.progress
+        with self._pool.connection() as conn:
+            conn.execute(
+                "UPDATE tickets SET assignee=%s, progress=%s, notes=%s WHERE seq=%s",
+                (assignee, progress, json.dumps(notes, ensure_ascii=False), seq),
+            )
+        return self._fetch(seq)
+
+    def update_progress(self, ticket_id: str, progress: str, note: str, author: str) -> Ticket:
+        seq = self._seq_of(ticket_id)
+        t = self._fetch(seq)
+        new_progress = progress if progress in PROGRESS else t.progress
+        text = note.strip() or f"进度更新为「{new_progress}」"
+        notes = [*t.notes, {"ts": _fmt(self._clock()), "author": author, "text": text}]
+        with self._pool.connection() as conn:
+            conn.execute(
+                "UPDATE tickets SET progress=%s, notes=%s WHERE seq=%s",
+                (new_progress, json.dumps(notes, ensure_ascii=False), seq),
+            )
+        return self._fetch(seq)
 
 
 def build_ticket_store(database_url: str = "") -> TicketStore:

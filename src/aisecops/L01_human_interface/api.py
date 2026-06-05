@@ -15,6 +15,7 @@ from .routers import (
     alerts,
     assets,
     auth,
+    cockpit,
     config,
     dispatch,
     intel,
@@ -58,6 +59,7 @@ for _module in (
     prompts,
     knowledge,
     ai_compliance,
+    cockpit,
 ):
     app.include_router(_module.router)
 

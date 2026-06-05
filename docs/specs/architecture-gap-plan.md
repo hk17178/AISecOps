@@ -69,11 +69,12 @@
 
 ---
 
-## Phase 2 · 协作驾驶舱（⑦ + ⑥的工单派发半边）
-- **需先改 V2 文字版 + 写 ADR**（C-15：驾驶舱是 L01 新视图，V2 未显式画）。
-- 工单模型扩展：`assignee / progress / sla_due / 处理时间线`。
-- 驾驶舱页：实时看板——每个故障/事件指派给谁、状态、进展、超时预警；MTTD/MTTR；管理层只读总览（少打扰技术）。
-- DoD：工单可指派、可更新进度、超 SLA 标红；驾驶舱一屏看清"谁在处理啥/到哪步"。
+## Phase 2 · 协作驾驶舱（⑦ + ⑥的工单派发半边）✅ 已完成
+
+> V2 文字版已加「协作驾驶舱」+ [ADR-0012](../adr/0012-ops-cockpit-and-ticket-assignment.md)。
+> 工单扩 assignee/progress/sla_due/notes(时间线)；PG 加列平滑迁移；建单按风险定 SLA(高4h/中24h)。
+> `/api/tickets/{id}/assign`+`/progress`（鉴权+审计）；`/api/cockpit` 聚合(在办/按人负载/超时)。
+> 前端「协作驾驶舱」工作板：汇总卡 + 在办看板(超时标红+内联指派/进度) + 按人负载。155 测试绿。
 
 ## Phase 3 · 数据/能力底座（② + ③）
 - **② 日志多源接入**：L06 data_sources 适配器框架（ES/Zabbix/Syslog/Kafka…，薄适配器优先 ADR-0004）+「日志接入管理」页（数据源 CRUD/连通/解析/状态），对标 Splunk「Data inputs」。激活 ADR-0009 留的 L10 接入。

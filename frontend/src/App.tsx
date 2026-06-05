@@ -10,6 +10,7 @@ import Correlate from './pages/Correlate'
 import Hunt from './pages/Hunt'
 import Soar from './pages/Soar'
 import Ticket from './pages/Ticket'
+import Cockpit from './pages/Cockpit'
 import Dispatch from './pages/Dispatch'
 import Report from './pages/Report'
 import Cmdb from './pages/Cmdb'
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/hunt" element={<Hunt />} />
           <Route path="/soar" element={<Soar />} />
           <Route path="/ticket" element={<Ticket />} />
+          <Route path="/cockpit" element={<Cockpit />} />
           <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/report" element={<Report />} />
           <Route path="/cmdb" element={<Cmdb />} />

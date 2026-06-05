@@ -90,3 +90,42 @@ async def reject_ticket(
     ticket_id: str, body: DecisionIn, principal: Principal = Depends(require_role(*WRITE))
 ) -> dict[str, Any]:
     return await _decide(ticket_id, "已驳回", "ticket_reject", body.reason, principal.username)
+
+
+class AssignIn(BaseModel):
+    assignee: str
+
+
+@router.put("/api/tickets/{ticket_id}/assign")
+async def assign_ticket(
+    ticket_id: str, body: AssignIn, principal: Principal = Depends(require_role(*WRITE))
+) -> dict[str, Any]:
+    """指派处理人（协作态，ADR-0012）。"""
+    try:
+        t = rt.tickets.assign(ticket_id, body.assignee.strip(), principal.username)
+    except TicketError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    rt.ctx.audit.append(
+        actor=principal.username, action="ticket_assign", target=ticket_id, details={"assignee": body.assignee}
+    )
+    return t.model_dump()
+
+
+class ProgressIn(BaseModel):
+    progress: str
+    note: str = ""
+
+
+@router.put("/api/tickets/{ticket_id}/progress")
+async def progress_ticket(
+    ticket_id: str, body: ProgressIn, principal: Principal = Depends(require_role(*WRITE))
+) -> dict[str, Any]:
+    """更新处理进度 + 追加时间线。"""
+    try:
+        t = rt.tickets.update_progress(ticket_id, body.progress, body.note, principal.username)
+    except TicketError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    rt.ctx.audit.append(
+        actor=principal.username, action="ticket_progress", target=ticket_id, details={"progress": body.progress}
+    )
+    return t.model_dump()
