@@ -12,8 +12,12 @@ from .agent_config import (
     resolve_cross_check,
     seed_agent_configs,
 )
-from .base import Agent, AgentContext, AgentResult, Task
+from .base import Agent, AgentContext, AgentResult, Task, sanitize_for_tag
 from .correlation import CorrelationAgent, CorrelationConclusion
+from .enrichment import EnrichmentAgent
+from .intel import IntelAgent
+from .reporter import ReporterAgent
+from .responder import ResponderAgent
 from .investigation import InvestigationAgent, InvestigationVerdict
 from .memory import InMemoryMemoryStore, MemoryStore
 from .notify import (
@@ -82,6 +86,11 @@ __all__ = [
     "InvestigationVerdict",
     "CorrelationAgent",
     "CorrelationConclusion",
+    "EnrichmentAgent",
+    "IntelAgent",
+    "ResponderAgent",
+    "ReporterAgent",
+    "sanitize_for_tag",
     "AgentConfig",
     "AgentConfigStore",
     "InMemoryAgentConfigStore",

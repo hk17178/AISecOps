@@ -13,16 +13,17 @@ from ..runtime import rt
 router = APIRouter()
 
 
-# Agent 名册（诚实反映代码实现状态：当前仅 Orchestrator + Triage 已编码）
+# Agent 名册（诚实反映代码实现状态）
 _AGENT_ROSTER = [
     {"name": "Orchestrator", "status": "实现", "desc": "统一调度，禁省略（C-5）"},
     {"name": "Triage", "status": "实现", "desc": "告警分诊：结构化研判 + abstain + cross-check"},
-    {"name": "Investigation", "status": "实现", "desc": "事件取证：ES 日志建时间线 + LLM 攻击链"},
-    {"name": "Enrichment", "status": "规划", "desc": "上下文富化"},
-    {"name": "Responder", "status": "规划", "desc": "处置执行，经 HITL"},
-    {"name": "Reporter", "status": "规划", "desc": "报告生成"},
-    {"name": "Intel", "status": "规划", "desc": "威胁情报"},
-    {"name": "Tuning", "status": "规划", "desc": "反馈调优（不训 DSLM）"},
+    {"name": "Investigation", "status": "实现", "desc": "事件取证：ES 日志建时间线 + L08 算法 + LLM 攻击链"},
+    {"name": "Correlation", "status": "实现", "desc": "跨告警关联：并查集聚簇 + LLM 攻击链(带引用)"},
+    {"name": "Enrichment", "status": "实现", "desc": "上下文富化：CMDB + IoC + 历史经验(RAG)"},
+    {"name": "Intel", "status": "实现", "desc": "威胁情报富化：IoC 比对(查而非记忆 C-25)"},
+    {"name": "Responder", "status": "实现", "desc": "处置执行：写动作必经 HITL 工单(C-8)"},
+    {"name": "Reporter", "status": "实现", "desc": "报告执行摘要：确定性取数 + LLM 叙述"},
+    {"name": "Tuning", "status": "规划", "desc": "反馈飞轮：结案自动沉淀知识(下一步)"},
 ]
 
 

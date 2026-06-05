@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aisecops.L05_gateway.llm_gateway import LLMGateway, Message, Role
@@ -53,9 +54,13 @@ class ReportingService:
 
     def __init__(self, gateway: LLMGateway) -> None:
         self.gateway = gateway
+        # 组合根可注入：把摘要生成委托给 Reporter Agent（经 Orchestrator，C-5）。None 则用自身网关。
+        self.summarizer: Callable[[str, dict[str, Any]], Awaitable[tuple[str, bool]]] | None = None
 
     async def _summary(self, kind: str, data: dict[str, Any]) -> tuple[str, bool]:
-        """返回 (摘要文本, 是否大模型生成)。离线 stub → 自动摘要。"""
+        """返回 (摘要文本, 是否大模型生成)。优先经 Reporter Agent；否则自身网关；离线 stub → 自动摘要。"""
+        if self.summarizer is not None:
+            return await self.summarizer(kind, data)
         data_text = "\n".join(f"{k}: {v}" for k, v in data.items() if not isinstance(v, (list, dict)))
         resp = await self.gateway.call(
             [

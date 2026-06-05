@@ -14,11 +14,20 @@ from typing import Any
 
 from aisecops.L02_agents import (
     AgentContext,
+    CorrelationAgent,
+    EnrichmentAgent,
+    IntelAgent,
+    InvestigationAgent,
+    Orchestrator,
+    ReporterAgent,
+    ResponderAgent,
+    SessionStore,
+    Task,
+    TriageAgent,
     build_agent_config_store,
     build_channel_store,
     build_dispatch_rule_store,
     build_playbook_store,
-    SessionStore,
     build_record_store,
     build_run_store,
     build_ticket_store,
@@ -48,10 +57,7 @@ from aisecops.L07_secops_capabilities import (
     AlertTriageService,
     CorrelationService,
     InvestigationService,
-    build_alert_triage_service,
-    build_correlation_service,
     build_ingest_service,
-    build_investigation_service,
     build_reporting_service,
 )
 from aisecops.L10_data_collection.ingest import normalize_alert
@@ -142,9 +148,7 @@ class Runtime:
         self.tickets = build_ticket_store(db_url)
         if not self.tickets.all():
             seed_demo_tickets(self.tickets)
-        self.triage = build_alert_triage_service(self.ctx, self.tickets)
-        self.invest = build_investigation_service(self.ctx)
-        self.corr = build_correlation_service(self.ctx)
+        # 注：Agent 群 + 服务的装配挪到 assets/iocs 之后（Enrichment/Intel 需注入它们）
 
         # 告警库
         self.alerts = build_alert_store(db_url)
@@ -191,6 +195,30 @@ class Runtime:
 
         # 告警接入出口（L07）：归一化+情报+降噪+入库流水线，从表现层下沉（审查 #23）
         self.ingest = build_ingest_service(normalize_alert, self.iocs, self.dedup, self.alerts, self.supp_rules)
+
+        # ===== L02 Agent 群 + 统一 Orchestrator（C-5）=====
+        # 7+1：Triage/Investigation/Correlation/Enrichment/Intel/Responder/Reporter（Tuning 见飞轮 1.3）
+        self.agents = {
+            "alert_triage": TriageAgent(),
+            "investigation": InvestigationAgent(),
+            "correlation": CorrelationAgent(),
+            "enrichment": EnrichmentAgent(self.assets.get_by_host, self.iocs),  # CMDB 依赖注入(不直连 L11)
+            "intel": IntelAgent(self.iocs),
+            "respond": ResponderAgent(self.tickets),
+            "report": ReporterAgent(),
+        }
+        self.orchestrator = Orchestrator(self.agents, self.ctx)
+        # L07 业务出口经统一 Orchestrator 编排（不再各建一个单 Agent 的编排器）
+        self.triage = AlertTriageService(self.orchestrator, self.tickets)
+        self.invest = InvestigationService(self.orchestrator)
+        self.corr = CorrelationService(self.orchestrator)
+
+        # Reporter 接入报表：执行摘要经 Orchestrator→ReporterAgent（L07→L02 合规）
+        async def _report_summary(kind: str, data: dict[str, Any]) -> tuple[str, bool]:
+            res = await self.orchestrator.dispatch(Task(kind="report", payload={"report_kind": kind, "data": data}))
+            return str(res.data.get("summary", "")), bool(res.data.get("by_llm", False))
+
+        self.reporting.summarizer = _report_summary
 
         # Prompt 治理（L04）；注入 ctx → Agent 热加载 active 版本（⑤）
         self.prompts = build_prompt_store(db_url)

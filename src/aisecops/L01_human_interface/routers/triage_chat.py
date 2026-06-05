@@ -36,13 +36,7 @@ async def triage(
         raise HTTPException(status_code=403, detail="Triage Agent 已停用（系统设置/AI Agent 可启用）")
     alert = body.model_dump()
     high_risk = bool(alert.pop("high_risk", False))
-    # CMDB 富化：命中资产则把重要度/角色喂进研判；关键/高资产自动升级为高风险（双模型 cross-check）
-    asset = rt.assets.get_by_host(str(alert.get("host", "")))
-    if asset is not None:
-        alert["asset_importance"] = asset.importance
-        alert["asset_role"] = asset.role
-        if asset.importance in ("关键", "高"):
-            high_risk = True
+    # CMDB 富化（含关键/高资产升级高风险）已下沉到 Enrichment Agent（经 Orchestrator），这里只调出口
     result = await svc.triage(alert, high_risk=high_risk)
     return result.model_dump()
 
